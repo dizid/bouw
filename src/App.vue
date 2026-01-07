@@ -1,29 +1,21 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+
+const route = useRoute()
 </script>
 
 <template>
-  <header>
-    <nav>
-      <RouterLink to="/">Home</RouterLink>
-      <RouterLink to="/about">About</RouterLink>
-    </nav>
-  </header>
   <RouterView />
+
+  <!-- Bottom navigation -->
+  <nav class="bottom-nav">
+    <RouterLink to="/" class="nav-item" :class="{ active: route.name === 'klussen' }">
+      <span class="nav-icon">📋</span>
+      <span>Klussen</span>
+    </RouterLink>
+    <RouterLink to="/dashboard" class="nav-item" :class="{ active: route.name === 'dashboard' }">
+      <span class="nav-icon">📊</span>
+      <span>Dashboard</span>
+    </RouterLink>
+  </nav>
 </template>
-
-<style scoped>
-nav {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-nav a {
-  color: inherit;
-}
-
-nav a.router-link-active {
-  font-weight: bold;
-}
-</style>
