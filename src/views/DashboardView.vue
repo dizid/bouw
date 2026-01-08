@@ -251,7 +251,7 @@ function printPage() {
             <button
               class="btn btn-secondary"
               style="width: auto; height: 40px; padding: 0 12px; font-size: 14px;"
-              @click="workersStore.removeWorker(worker.id)"
+              @click="if (confirm('Weet je zeker dat je ' + worker.name + ' wilt verwijderen?')) workersStore.removeWorker(worker.id)"
             >
               ×
             </button>
