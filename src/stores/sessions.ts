@@ -70,6 +70,7 @@ export const useSessionsStore = defineStore('sessions', () => {
       const { data, error: err } = await supabase
         .from('job_sessions')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (err) throw err
@@ -110,9 +111,10 @@ export const useSessionsStore = defineStore('sessions', () => {
     loading.value = true
     error.value = null
     try {
+      // Soft delete - set deleted_at instead of actually deleting
       const { error: err } = await supabase
         .from('job_sessions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
       if (err) throw err

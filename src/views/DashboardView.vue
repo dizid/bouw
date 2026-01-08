@@ -12,6 +12,7 @@ const photosStore = usePhotosStore()
 
 const activeTab = ref<'medewerkers' | 'overzicht' | 'woningen'>('overzicht')
 const newWorkerName = ref('')
+const selectedWorkerId = ref<string | null>(null)
 const selectedHouse = ref<number | null>(null)
 const housePhotos = ref<SessionPhoto[]>([])
 const loadingPhotos = ref(false)
@@ -44,6 +45,47 @@ function confirmRemoveWorker(worker: { id: string; name: string }) {
   if (confirm(`Weet je zeker dat je ${worker.name} wilt verwijderen?`)) {
     workersStore.removeWorker(worker.id)
   }
+}
+
+// Filter sessions by worker
+const filteredSessions = computed(() => {
+  if (!selectedWorkerId.value) return sessionsStore.sessions
+  return sessionsStore.sessions.filter(s => s.worker_id === selectedWorkerId.value)
+})
+
+// Get selected worker name
+const selectedWorkerName = computed(() => {
+  if (!selectedWorkerId.value) return null
+  return workersStore.allWorkers.find(w => w.id === selectedWorkerId.value)?.name || 'Onbekend'
+})
+
+// Filtered stats
+const filteredStats = computed(() => {
+  const sessions = filteredSessions.value
+  const houses = new Set(sessions.map(s => s.house_number))
+  const totalMinutes = sessions.reduce((sum, s) => {
+    return sum +
+      (s.binnen_opruimen_min || 0) +
+      (s.buiten_balkon_min || 0) +
+      (s.zonnescherm_verwijderd_min || 0) +
+      (s.glasbreuk_min || 0) +
+      (s.diversen_min || 0)
+  }, 0)
+  return {
+    totalHouses: houses.size,
+    totalHours: (totalMinutes / 60).toFixed(1),
+  }
+})
+
+// Select worker to filter
+function selectWorker(workerId: string) {
+  selectedWorkerId.value = workerId
+  activeTab.value = 'overzicht'
+}
+
+// Clear worker filter
+function clearWorkerFilter() {
+  selectedWorkerId.value = null
 }
 
 // Format date
@@ -151,7 +193,7 @@ function exportCSV() {
     'Totaal (min)',
   ]
 
-  const rows = sessionsStore.sessions.map(s => [
+  const rows = filteredSessions.value.map(s => [
     formatDate(s.created_at),
     s.house_number,
     getWorkerName(s.worker_id),
@@ -252,7 +294,10 @@ function printPage() {
             class="form-row mb-sm"
             style="align-items: center;"
           >
-            <span style="flex: 1; font-weight: 600;">{{ worker.name }}</span>
+            <span
+              style="flex: 1; font-weight: 600; cursor: pointer; text-decoration: underline;"
+              @click="selectWorker(worker.id)"
+            >{{ worker.name }}</span>
             <span style="color: var(--color-text-light); font-size: 14px;">
               {{ sessionsStore.getWorkerStats(worker.id).sessions }} sessies
             </span>
@@ -270,17 +315,31 @@ function printPage() {
 
     <!-- Overzicht tab -->
     <div v-if="activeTab === 'overzicht'">
+      <!-- Filter indicator -->
+      <div v-if="selectedWorkerId" class="card" style="background: var(--color-primary); color: white;">
+        <div class="form-row" style="align-items: center;">
+          <span style="flex: 1;">Gefilterd op: <strong>{{ selectedWorkerName }}</strong></span>
+          <button
+            class="btn"
+            style="width: auto; padding: 0 16px; background: white; color: var(--color-primary);"
+            @click="clearWorkerFilter"
+          >
+            × Wis filter
+          </button>
+        </div>
+      </div>
+
       <!-- Stats cards -->
       <div class="form-row mb-md">
         <div class="card text-center">
           <div style="font-size: 32px; font-weight: 700; color: var(--color-primary);">
-            {{ sessionsStore.stats.totalHouses }}
+            {{ filteredStats.totalHouses }}
           </div>
           <div style="font-size: 14px; color: var(--color-text-light);">Woningen</div>
         </div>
         <div class="card text-center">
           <div style="font-size: 32px; font-weight: 700; color: var(--color-primary);">
-            {{ sessionsStore.stats.totalHours }}
+            {{ filteredStats.totalHours }}
           </div>
           <div style="font-size: 14px; color: var(--color-text-light);">Uren totaal</div>
         </div>
@@ -330,7 +389,7 @@ function printPage() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="session in sessionsStore.sessions.slice(0, 20)" :key="session.id">
+            <tr v-for="session in filteredSessions.slice(0, 20)" :key="session.id">
               <td>{{ formatDate(session.created_at) }}</td>
               <td>{{ session.house_number }}</td>
               <td>{{ getWorkerName(session.worker_id) }}</td>

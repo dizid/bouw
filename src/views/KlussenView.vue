@@ -99,7 +99,16 @@ async function handleSubmit() {
 }
 
 const canSubmit = () => {
-  return selectedWorkerId.value && houseNumber.value && houseNumber.value > 0 && !uploadingPhotos.value
+  if (!selectedWorkerId.value || !houseNumber.value || houseNumber.value <= 0 || uploadingPhotos.value) {
+    return false
+  }
+  // Check that selected tasks have minutes filled in
+  if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return false
+  if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return false
+  if (zonnescherm.value.checked && !zonnescherm.value.minutes) return false
+  if (glasbreuk.value.checked && !glasbreuk.value.minutes) return false
+  if (diversen.value.checked && !diversen.value.minutes) return false
+  return true
 }
 
 const isLoading = () => {

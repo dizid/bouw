@@ -53,6 +53,7 @@ export type Database = {
           buiten_balkon_min: number | null
           buiten_balkon_opmerkingen: string | null
           created_at: string | null
+          deleted_at: string | null
           diversen_min: number | null
           diversen_opmerkingen: string | null
           glasbreuk_aantal: number | null
@@ -95,6 +96,7 @@ export type Database = {
           buiten_balkon_min?: number | null
           buiten_balkon_opmerkingen?: string | null
           created_at?: string | null
+          deleted_at?: string | null
           diversen_min?: number | null
           diversen_opmerkingen?: string | null
           glasbreuk_aantal?: number | null
