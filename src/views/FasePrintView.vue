@@ -21,24 +21,13 @@ const photosByHouse = ref<Record<number, SessionPhoto[]>>({})
 onMounted(async () => {
   await sessionsStore.fetchSessions()
 
-  // Fetch photos for each house in this fase
+  // Fetch photos for all houses in this fase with single batch query
   const houses = sessionsStore.getHousesInFase(faseNum.value)
-  const newPhotosByHouse: Record<number, SessionPhoto[]> = {}
-
-  for (const houseNum of houses) {
-    try {
-      newPhotosByHouse[houseNum] = await photosStore.fetchPhotosForHouse(houseNum)
-    } catch {
-      newPhotosByHouse[houseNum] = []
-    }
-  }
-
-  // Assign all at once to trigger reactivity
-  photosByHouse.value = newPhotosByHouse
+  photosByHouse.value = await photosStore.fetchPhotosForHouses(houses)
 
   // Count total images (max 6 per house)
   let count = 0
-  for (const photos of Object.values(newPhotosByHouse)) {
+  for (const photos of Object.values(photosByHouse.value)) {
     count += Math.min(photos.length, 6)
   }
   totalImages.value = count

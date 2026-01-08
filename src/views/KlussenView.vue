@@ -19,6 +19,8 @@ const uploadingPhotos = ref(false)
 
 // Autocomplete state
 const showWorkerDropdown = ref(false)
+const workerConfirmed = ref(false)
+
 const filteredWorkers = computed(() => {
   if (!workerName.value || workerName.value.length < 1) return []
   const search = workerName.value.toLowerCase()
@@ -27,8 +29,23 @@ const filteredWorkers = computed(() => {
     .slice(0, 5) // Max 5 suggestions
 })
 
+// Show confirm button when name entered, not confirmed, and dropdown not visible
+// Dropdown is only visible when open AND has matching results
+const showConfirmButton = computed(() => {
+  const dropdownVisible = showWorkerDropdown.value && filteredWorkers.value.length > 0
+  return workerName.value.trim().length > 0 &&
+         !workerConfirmed.value &&
+         !dropdownVisible
+})
+
 function selectWorker(name: string) {
   workerName.value = name
+  workerConfirmed.value = true
+  showWorkerDropdown.value = false
+}
+
+function confirmNewWorker() {
+  workerConfirmed.value = true
   showWorkerDropdown.value = false
 }
 
@@ -55,11 +72,13 @@ onMounted(async () => {
   }
 })
 
-// Save worker name to localStorage
+// Save worker name to localStorage and reset confirmation on change
 watch(workerName, (name) => {
   if (name) {
     localStorage.setItem('lastWorkerName', name)
   }
+  // Reset confirmation when name changes - user must explicitly confirm
+  workerConfirmed.value = false
 })
 
 function resetForm() {
@@ -128,6 +147,8 @@ const canSubmit = () => {
   if (!workerName.value.trim() || !houseNumber.value || houseNumber.value <= 0 || uploadingPhotos.value) {
     return false
   }
+  // Worker name must be confirmed (either existing worker or explicitly confirmed new name)
+  if (!workerConfirmed.value) return false
   // Check that selected tasks have minutes filled in
   if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return false
   if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return false
@@ -164,6 +185,7 @@ const isLoading = () => {
           v-model="workerName"
           placeholder="Jouw naam"
           autocomplete="off"
+          :class="{ confirmed: workerConfirmed }"
           @focus="showWorkerDropdown = true"
           @blur="handleWorkerBlur"
         />
@@ -176,6 +198,23 @@ const isLoading = () => {
             {{ worker.name }}
           </li>
         </ul>
+        <!-- Confirm button - ALWAYS shows when name typed and not confirmed -->
+        <button
+          v-if="showConfirmButton"
+          type="button"
+          class="btn-confirm-worker"
+          @click="confirmNewWorker"
+        >
+          Bevestig: {{ workerName.trim() }}
+        </button>
+        <!-- Confirmed badge -->
+        <div v-if="workerConfirmed" class="confirmed-badge">
+          ✓ {{ workerName }}
+        </div>
+        <!-- Help text -->
+        <p class="field-help">
+          Kies of bevestig je naam
+        </p>
       </div>
 
       <div class="form-group">

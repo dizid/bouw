@@ -138,6 +138,57 @@ export const usePhotosStore = defineStore('photos', () => {
   }
 
   /**
+   * Fetch photos for multiple houses in a single query (batch)
+   * Uses JOIN to avoid N+1 query problem
+   */
+  async function fetchPhotosForHouses(houseNumbers: number[]): Promise<Record<number, SessionPhoto[]>> {
+    if (houseNumbers.length === 0) {
+      return {}
+    }
+
+    // Single query: join session_photos with job_sessions (exclude deleted)
+    const { data, error: fetchError } = await supabase
+      .from('session_photos')
+      .select('*, job_sessions!inner(house_number, deleted_at)')
+      .in('job_sessions.house_number', houseNumbers)
+      .is('job_sessions.deleted_at', null)
+      .order('created_at', { ascending: false })
+
+    if (fetchError) {
+      console.error('Failed to fetch photos:', fetchError)
+      throw fetchError
+    }
+
+    // Group by house number
+    const byHouse: Record<number, SessionPhoto[]> = {}
+    // Initialize all houses with empty arrays
+    for (const houseNum of houseNumbers) {
+      byHouse[houseNum] = []
+    }
+
+    if (data) {
+      for (const row of data) {
+        const houseNum = (row.job_sessions as { house_number: number }).house_number
+        // Extract just the photo fields (without the joined job_sessions)
+        const photo: SessionPhoto = {
+          id: row.id,
+          session_id: row.session_id,
+          storage_path: row.storage_path,
+          thumbnail_path: row.thumbnail_path,
+          original_filename: row.original_filename,
+          file_size: row.file_size,
+          created_at: row.created_at,
+        }
+        if (byHouse[houseNum]) {
+          byHouse[houseNum].push(photo)
+        }
+      }
+    }
+
+    return byHouse
+  }
+
+  /**
    * Get the public URL for a photo
    */
   function getPhotoUrl(storagePath: string): string {
@@ -194,6 +245,7 @@ export const usePhotosStore = defineStore('photos', () => {
     uploadPhotos,
     fetchPhotosForSession,
     fetchPhotosForHouse,
+    fetchPhotosForHouses,
     getPhotoUrl,
     getPhotoThumbnailUrl,
     deleteFromStorage,
