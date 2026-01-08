@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <g fill="#005BAA">
-    <!-- Left pillar with ball top -->
-    <circle cx="7" cy="10" r="3.5"/>
-    <rect x="5" y="10" width="4" height="14"/>
+  <g fill="#0055A4">
+    <!-- Left tower -->
+    <circle cx="6.5" cy="9" r="3"/>
+    <path d="M4 9 L4 26 L9 26 L9 9 Q6.5 11 4 9"/>
 
-    <!-- Middle pillar (taller) with ball top -->
-    <circle cx="16" cy="5" r="4"/>
-    <rect x="14" y="5" width="4" height="19"/>
+    <!-- Middle tower (tallest) -->
+    <circle cx="16" cy="4" r="3.5"/>
+    <path d="M13 4 L13 26 L19 26 L19 4 Q16 7 13 4"/>
 
-    <!-- Right pillar with ball top -->
-    <circle cx="25" cy="10" r="3.5"/>
-    <rect x="23" y="10" width="4" height="14"/>
+    <!-- Right tower -->
+    <circle cx="25.5" cy="9" r="3"/>
+    <path d="M23 9 L23 26 L28 26 L28 9 Q25.5 11 23 9"/>
 
-    <!-- Base connecting all pillars -->
-    <rect x="5" y="24" width="22" height="4" rx="1"/>
+    <!-- Base -->
+    <rect x="4" y="26" width="24" height="3"/>
   </g>
 </svg>
