@@ -10,6 +10,9 @@ const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
 const loading = ref(true)
+const imagesLoading = ref(true)
+const imagesLoaded = ref(0)
+const totalImages = ref(0)
 const faseNum = computed(() => Number(route.params.num) || 1)
 
 // Photos indexed by house number
@@ -32,6 +35,19 @@ onMounted(async () => {
 
   // Assign all at once to trigger reactivity
   photosByHouse.value = newPhotosByHouse
+
+  // Count total images (max 6 per house)
+  let count = 0
+  for (const photos of Object.values(newPhotosByHouse)) {
+    count += Math.min(photos.length, 6)
+  }
+  totalImages.value = count
+
+  // If no images, mark as loaded
+  if (count === 0) {
+    imagesLoading.value = false
+  }
+
   loading.value = false
 })
 
@@ -88,15 +104,24 @@ const faseTotalHours = computed(() => {
   return total.toFixed(1)
 })
 
-// Get photo URL
+// Get photo URL (300px thumbnail for faster loading - originals stay intact)
 function getPhotoUrl(photo: SessionPhoto): string {
-  return photosStore.getPhotoUrl(photo.storage_path)
+  return photosStore.getPhotoThumbnailUrl(photo.storage_path, 300)
 }
 
-// Hide broken image
+// Track image load progress
+function onImageLoad() {
+  imagesLoaded.value++
+  if (imagesLoaded.value >= totalImages.value) {
+    imagesLoading.value = false
+  }
+}
+
+// Hide broken image (also counts as "loaded" for progress)
 function hideImage(event: Event) {
   const img = event.target as HTMLImageElement
   img.style.display = 'none'
+  onImageLoad()
 }
 
 // Print the page
@@ -126,10 +151,19 @@ const formattedDate = computed(() => {
     <div v-else class="print-content">
       <!-- Print button (hidden when printing) -->
       <div class="no-print toolbar">
-        <button class="print-btn" @click="printPage">
-          Afdrukken / Opslaan als PDF
+        <button
+          class="print-btn"
+          :disabled="imagesLoading && totalImages > 0"
+          @click="printPage"
+        >
+          <template v-if="imagesLoading && totalImages > 0">
+            Foto's laden... ({{ imagesLoaded }}/{{ totalImages }})
+          </template>
+          <template v-else>
+            Afdrukken / Opslaan als PDF
+          </template>
         </button>
-        <p class="hint">Tip: Kies "Opslaan als PDF" in het print dialoog</p>
+        <p v-if="!imagesLoading || totalImages === 0" class="hint">Tip: Kies "Opslaan als PDF" in het print dialoog</p>
       </div>
 
       <!-- Header bar -->
@@ -229,6 +263,7 @@ const formattedDate = computed(() => {
               :src="getPhotoUrl(photo)"
               :alt="'Foto ' + (idx + 1)"
               class="photo"
+              @load="onImageLoad"
               @error="hideImage"
             />
           </div>
@@ -311,9 +346,14 @@ const formattedDate = computed(() => {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 
-.print-btn:hover {
+.print-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.print-btn:disabled {
+  background: #94a3b8;
+  cursor: wait;
 }
 
 .hint {

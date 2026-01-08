@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useWorkersStore } from '@/stores/workers'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePhotosStore } from '@/stores/photos'
@@ -11,11 +11,33 @@ const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
 // Form state
-const selectedWorkerId = ref('')
+const workerName = ref('')
 const houseNumber = ref<number | null>(null)
 const showSuccess = ref(false)
 const capturedPhotos = ref<CapturedPhoto[]>([])
 const uploadingPhotos = ref(false)
+
+// Autocomplete state
+const showWorkerDropdown = ref(false)
+const filteredWorkers = computed(() => {
+  if (!workerName.value || workerName.value.length < 1) return []
+  const search = workerName.value.toLowerCase()
+  return workersStore.workers
+    .filter(w => w.name.toLowerCase().includes(search))
+    .slice(0, 5) // Max 5 suggestions
+})
+
+function selectWorker(name: string) {
+  workerName.value = name
+  showWorkerDropdown.value = false
+}
+
+function handleWorkerBlur() {
+  // Delay to allow click on dropdown item
+  setTimeout(() => {
+    showWorkerDropdown.value = false
+  }, 150)
+}
 
 // Task states
 const binnenOpruimen = ref({ checked: false, minutes: null as number | null, opmerkingen: '' })
@@ -24,19 +46,19 @@ const zonnescherm = ref({ checked: false, minutes: null as number | null, terugp
 const glasbreuk = ref({ checked: false, minutes: null as number | null, aantal: null as number | null, opmerkingen: '' })
 const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '' })
 
-// Load workers on mount and restore last selected worker
+// Load workers on mount and restore last worker name
 onMounted(async () => {
   await workersStore.fetchWorkers()
-  const lastWorkerId = localStorage.getItem('lastWorkerId')
-  if (lastWorkerId && workersStore.workers.some(w => w.id === lastWorkerId)) {
-    selectedWorkerId.value = lastWorkerId
+  const lastWorkerName = localStorage.getItem('lastWorkerName')
+  if (lastWorkerName) {
+    workerName.value = lastWorkerName
   }
 })
 
-// Save selected worker to localStorage
-watch(selectedWorkerId, (newId) => {
-  if (newId) {
-    localStorage.setItem('lastWorkerId', newId)
+// Save worker name to localStorage
+watch(workerName, (name) => {
+  if (name) {
+    localStorage.setItem('lastWorkerName', name)
   }
 })
 
@@ -53,10 +75,14 @@ function resetForm() {
 }
 
 async function handleSubmit() {
-  if (!selectedWorkerId.value || !houseNumber.value) return
+  if (!workerName.value.trim() || !houseNumber.value) return
+
+  // Find or create worker
+  const worker = await workersStore.findOrCreateWorker(workerName.value)
+  if (!worker) return
 
   const session: JobSessionInsert = {
-    worker_id: selectedWorkerId.value,
+    worker_id: worker.id,
     house_number: houseNumber.value,
     binnen_opruimen_min: binnenOpruimen.value.checked ? binnenOpruimen.value.minutes : null,
     binnen_opruimen_opmerkingen: binnenOpruimen.value.checked ? binnenOpruimen.value.opmerkingen || null : null,
@@ -99,7 +125,7 @@ async function handleSubmit() {
 }
 
 const canSubmit = () => {
-  if (!selectedWorkerId.value || !houseNumber.value || houseNumber.value <= 0 || uploadingPhotos.value) {
+  if (!workerName.value.trim() || !houseNumber.value || houseNumber.value <= 0 || uploadingPhotos.value) {
     return false
   }
   // Check that selected tasks have minutes filled in
@@ -130,14 +156,26 @@ const isLoading = () => {
 
     <!-- Worker and house selection -->
     <div class="card">
-      <div class="form-group">
+      <div class="form-group autocomplete-wrapper">
         <label for="worker">Medewerker</label>
-        <select id="worker" v-model="selectedWorkerId">
-          <option value="">-- Selecteer --</option>
-          <option v-for="worker in workersStore.workers" :key="worker.id" :value="worker.id">
+        <input
+          id="worker"
+          type="text"
+          v-model="workerName"
+          placeholder="Jouw naam"
+          autocomplete="off"
+          @focus="showWorkerDropdown = true"
+          @blur="handleWorkerBlur"
+        />
+        <ul v-if="showWorkerDropdown && filteredWorkers.length > 0" class="autocomplete-list">
+          <li
+            v-for="worker in filteredWorkers"
+            :key="worker.id"
+            @mousedown.prevent="selectWorker(worker.name)"
+          >
             {{ worker.name }}
-          </option>
-        </select>
+          </li>
+        </ul>
       </div>
 
       <div class="form-group">

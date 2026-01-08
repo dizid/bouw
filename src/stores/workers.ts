@@ -69,6 +69,20 @@ export const useWorkersStore = defineStore('workers', () => {
     }
   }
 
+  async function findOrCreateWorker(name: string): Promise<Worker | null> {
+    const trimmedName = name.trim()
+    if (!trimmedName) return null
+
+    // Check if worker exists (case-insensitive)
+    const existing = workers.value.find(
+      w => w.name.toLowerCase() === trimmedName.toLowerCase()
+    )
+    if (existing) return existing
+
+    // Create new worker
+    return await addWorker(trimmedName)
+  }
+
   async function removeWorker(id: string) {
     loading.value = true
     error.value = null
@@ -97,6 +111,7 @@ export const useWorkersStore = defineStore('workers', () => {
     fetchWorkers,
     fetchAllWorkers,
     addWorker,
+    findOrCreateWorker,
     removeWorker,
   }
 })

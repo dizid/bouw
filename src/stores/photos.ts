@@ -133,6 +133,23 @@ export const usePhotosStore = defineStore('photos', () => {
   }
 
   /**
+   * Get a thumbnail URL for a photo (uses Supabase transforms)
+   * Original image stays intact - transforms generate resized versions on-the-fly
+   */
+  function getPhotoThumbnailUrl(storagePath: string, width: number = 300): string {
+    const { data } = supabase.storage
+      .from('session-photos')
+      .getPublicUrl(storagePath, {
+        transform: {
+          width,
+          quality: 80
+        }
+      })
+
+    return data.publicUrl
+  }
+
+  /**
    * Delete a photo from storage (for removing before submit)
    */
   async function deleteFromStorage(storagePath: string): Promise<void> {
@@ -153,6 +170,7 @@ export const usePhotosStore = defineStore('photos', () => {
     fetchPhotosForSession,
     fetchPhotosForHouse,
     getPhotoUrl,
+    getPhotoThumbnailUrl,
     deleteFromStorage,
   }
 })

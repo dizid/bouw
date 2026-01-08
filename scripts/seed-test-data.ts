@@ -26,26 +26,28 @@ const TEST_WORKERS = ['Test Werknemer 1', 'Test Werknemer 2', 'Test Werknemer 3'
 const HOUSE_START = 100
 const HOUSE_END = 319
 
-// Minimal 10x10 JPEG images with different colors (base64 encoded)
-// These are tiny valid JPEG files with solid colors
-const PLACEHOLDER_IMAGES = [
-  // Red
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAYH/8QAHxAAAgICAQUAAAAAAAAAAAAAAQMCBAAFERIhMUFR/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANc0+0t6rZV7NGMolGwB0kD0wMaHu9rJ7dpm7qIgZMg9pxjGKbZy/9k=',
-  // Green
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAMH/8QAHxAAAgICAgMBAAAAAAAAAAAAAQIDBAAFERIxQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAP/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANR3W5saXW2tjahjKeWsDpIB8YGNJi97o7G+s3WRBCQeYhx24xjFNu5f/9k=',
-  // Blue
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAUH/8QAHxAAAgICAgMBAAAAAAAAAAAAAQIDBAAFERIxQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAP/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANM3e6r6PV2tjfhjKeqsDpIA8YGND3ex0N7e2bxIghIPSA47cYximzcv/9k=',
-  // Yellow
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAcI/8QAHxAAAgICAwADAAAAAAAAAAAAAQMCBAAFERIhMUFR/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANR3W6saLV2tnfhjKeavLpIB4xoW92MnuLWbu4iAExB0nHbjGMU27l//2Q==',
-  // Cyan
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAcI/8QAHxAAAgICAgMBAAAAAAAAAAAAAQIDBAAFERIxQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANM3e7r6LV2tjfhDKeysDpIA8YGNl3ex0d9e2LxIghIPSI47cYximzcv/9k=',
-  // Magenta
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAcI/8QAHxAAAgICAQUAAAAAAAAAAAAAAQIDBAAFERIxQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANR3O6saXW2tjfhDKeavLpIB4xoe92Mnt7ObuoiAExB0nHbjGMU27l//2Q==',
-  // Orange
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAYI/8QAHxAAAgICAQUAAAAAAAAAAAAAAQMCBAAFERIhMUFR/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANc0+7t6bZV7NKMolGuA0kD0wMaHvNpJ7hom7qIgZMg9pxjGKbdy/9k=',
-  // Purple
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAcI/8QAHxAAAgICAQUAAAAAAAAAAAAAAQIDBAAFERIxQWFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAXEQEBAQEAAAAAAAAAAAAAAAABAAIR/9oADAMBEQCEEQA/ANM3e6r6LV2tjfhDKeysDpIA8YGNl3ex0N9e2bxIghIPSI47cYximzcv/9k=',
-]
+// Fetch a random placeholder image from picsum.photos
+async function fetchPlaceholderImage(): Promise<Buffer> {
+  // Random image ID to get variety
+  const imageId = randomInt(1, 1000)
+  const url = `https://picsum.photos/id/${imageId}/400/300.jpg`
+
+  try {
+    const response = await fetch(url, { redirect: 'follow' })
+    if (!response.ok) {
+      // Fallback to random image if specific ID fails
+      const fallbackResponse = await fetch('https://picsum.photos/400/300.jpg', { redirect: 'follow' })
+      if (!fallbackResponse.ok) {
+        throw new Error('Failed to fetch placeholder image')
+      }
+      return Buffer.from(await fallbackResponse.arrayBuffer())
+    }
+    return Buffer.from(await response.arrayBuffer())
+  } catch (error) {
+    console.error('Error fetching placeholder image:', error)
+    throw error
+  }
+}
 
 // Utility functions
 function randomInt(min: number, max: number): number {
@@ -178,8 +180,13 @@ async function seed() {
     // Step 3: Upload 1-2 photos for this session
     const numPhotos = randomInt(1, 2)
     for (let i = 0; i < numPhotos; i++) {
-      const imageBase64 = randomChoice(PLACEHOLDER_IMAGES)
-      const imageBuffer = Buffer.from(imageBase64, 'base64')
+      let imageBuffer: Buffer
+      try {
+        imageBuffer = await fetchPlaceholderImage()
+      } catch {
+        console.error(`   House ${houseNum}: failed to fetch placeholder image, skipping`)
+        continue
+      }
       const storagePath = generateStorageFilename(session.id)
 
       // Upload to storage
