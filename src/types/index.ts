@@ -49,15 +49,20 @@ export type Database = {
           bewoner_naam: string | null
           bewoner_telefoon: string | null
           binnen_opruimen_min: number | null
+          binnen_opruimen_opmerkingen: string | null
           buiten_balkon_min: number | null
+          buiten_balkon_opmerkingen: string | null
           created_at: string | null
           diversen_min: number | null
+          diversen_opmerkingen: string | null
           glasbreuk_aantal: number | null
           glasbreuk_min: number | null
           glasbreuk_opmerkingen: string | null
           house_number: number
           id: string
           worker_id: string | null
+          zonnescherm_afstandverklaring: boolean | null
+          zonnescherm_opmerkingen: string | null
           zonnescherm_terugplaatsen: boolean | null
           zonnescherm_verwijderd_min: number | null
         }
@@ -65,15 +70,20 @@ export type Database = {
           bewoner_naam?: string | null
           bewoner_telefoon?: string | null
           binnen_opruimen_min?: number | null
+          binnen_opruimen_opmerkingen?: string | null
           buiten_balkon_min?: number | null
+          buiten_balkon_opmerkingen?: string | null
           created_at?: string | null
           diversen_min?: number | null
+          diversen_opmerkingen?: string | null
           glasbreuk_aantal?: number | null
           glasbreuk_min?: number | null
           glasbreuk_opmerkingen?: string | null
           house_number: number
           id?: string
           worker_id?: string | null
+          zonnescherm_afstandverklaring?: boolean | null
+          zonnescherm_opmerkingen?: string | null
           zonnescherm_terugplaatsen?: boolean | null
           zonnescherm_verwijderd_min?: number | null
         }
@@ -81,15 +91,20 @@ export type Database = {
           bewoner_naam?: string | null
           bewoner_telefoon?: string | null
           binnen_opruimen_min?: number | null
+          binnen_opruimen_opmerkingen?: string | null
           buiten_balkon_min?: number | null
+          buiten_balkon_opmerkingen?: string | null
           created_at?: string | null
           diversen_min?: number | null
+          diversen_opmerkingen?: string | null
           glasbreuk_aantal?: number | null
           glasbreuk_min?: number | null
           glasbreuk_opmerkingen?: string | null
           house_number?: number
           id?: string
           worker_id?: string | null
+          zonnescherm_afstandverklaring?: boolean | null
+          zonnescherm_opmerkingen?: string | null
           zonnescherm_terugplaatsen?: boolean | null
           zonnescherm_verwijderd_min?: number | null
         }

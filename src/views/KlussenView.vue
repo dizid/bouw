@@ -18,11 +18,11 @@ const capturedPhotos = ref<CapturedPhoto[]>([])
 const uploadingPhotos = ref(false)
 
 // Task states
-const binnenOpruimen = ref({ checked: false, minutes: null as number | null })
-const buitenBalkon = ref({ checked: false, minutes: null as number | null })
-const zonnescherm = ref({ checked: false, minutes: null as number | null, terugplaatsen: false })
+const binnenOpruimen = ref({ checked: false, minutes: null as number | null, opmerkingen: '' })
+const buitenBalkon = ref({ checked: false, minutes: null as number | null, opmerkingen: '' })
+const zonnescherm = ref({ checked: false, minutes: null as number | null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
 const glasbreuk = ref({ checked: false, minutes: null as number | null, aantal: null as number | null, opmerkingen: '' })
-const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '' })
+const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '' })
 
 // Load workers on mount and restore last selected worker
 onMounted(async () => {
@@ -42,11 +42,11 @@ watch(selectedWorkerId, (newId) => {
 
 function resetForm() {
   houseNumber.value = null
-  binnenOpruimen.value = { checked: false, minutes: null }
-  buitenBalkon.value = { checked: false, minutes: null }
-  zonnescherm.value = { checked: false, minutes: null, terugplaatsen: false }
+  binnenOpruimen.value = { checked: false, minutes: null, opmerkingen: '' }
+  buitenBalkon.value = { checked: false, minutes: null, opmerkingen: '' }
+  zonnescherm.value = { checked: false, minutes: null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' }
   glasbreuk.value = { checked: false, minutes: null, aantal: null, opmerkingen: '' }
-  diversen.value = { checked: false, minutes: null, naam: '', telefoon: '' }
+  diversen.value = { checked: false, minutes: null, naam: '', telefoon: '', opmerkingen: '' }
   // Clear photos and revoke blob URLs
   capturedPhotos.value.forEach(p => URL.revokeObjectURL(p.previewUrl))
   capturedPhotos.value = []
@@ -59,13 +59,18 @@ async function handleSubmit() {
     worker_id: selectedWorkerId.value,
     house_number: houseNumber.value,
     binnen_opruimen_min: binnenOpruimen.value.checked ? binnenOpruimen.value.minutes : null,
+    binnen_opruimen_opmerkingen: binnenOpruimen.value.checked ? binnenOpruimen.value.opmerkingen || null : null,
     buiten_balkon_min: buitenBalkon.value.checked ? buitenBalkon.value.minutes : null,
+    buiten_balkon_opmerkingen: buitenBalkon.value.checked ? buitenBalkon.value.opmerkingen || null : null,
     zonnescherm_verwijderd_min: zonnescherm.value.checked ? zonnescherm.value.minutes : null,
     zonnescherm_terugplaatsen: zonnescherm.value.checked ? zonnescherm.value.terugplaatsen : null,
+    zonnescherm_afstandverklaring: zonnescherm.value.checked && zonnescherm.value.terugplaatsen ? zonnescherm.value.afstandverklaring : null,
+    zonnescherm_opmerkingen: zonnescherm.value.checked ? zonnescherm.value.opmerkingen || null : null,
     glasbreuk_min: glasbreuk.value.checked ? glasbreuk.value.minutes : null,
     glasbreuk_aantal: glasbreuk.value.checked ? glasbreuk.value.aantal : null,
-    glasbreuk_opmerkingen: glasbreuk.value.checked ? glasbreuk.value.opmerkingen : null,
+    glasbreuk_opmerkingen: glasbreuk.value.checked ? glasbreuk.value.opmerkingen || null : null,
     diversen_min: diversen.value.checked ? diversen.value.minutes : null,
+    diversen_opmerkingen: diversen.value.checked ? diversen.value.opmerkingen || null : null,
     bewoner_naam: diversen.value.checked ? diversen.value.naam : null,
     bewoner_telefoon: diversen.value.checked ? diversen.value.telefoon : null,
   }
@@ -159,6 +164,10 @@ const isLoading = () => {
           <label>Minuten:</label>
           <input type="number" v-model="binnenOpruimen.minutes" min="0" inputmode="numeric" />
         </div>
+        <div>
+          <label>Opmerkingen</label>
+          <textarea v-model="binnenOpruimen.opmerkingen" rows="2"></textarea>
+        </div>
       </div>
     </div>
 
@@ -171,6 +180,10 @@ const isLoading = () => {
         <div class="inline-field">
           <label>Minuten:</label>
           <input type="number" v-model="buitenBalkon.minutes" min="0" inputmode="numeric" />
+        </div>
+        <div>
+          <label>Opmerkingen</label>
+          <textarea v-model="buitenBalkon.opmerkingen" rows="2"></textarea>
         </div>
       </div>
     </div>
@@ -188,6 +201,14 @@ const isLoading = () => {
         <div class="sub-checkbox" @click="zonnescherm.terugplaatsen = !zonnescherm.terugplaatsen">
           <div class="task-checkbox" :class="{ checked: zonnescherm.terugplaatsen }"></div>
           <span>Terugplaatsen?</span>
+        </div>
+        <div v-if="zonnescherm.terugplaatsen" class="sub-checkbox" @click="zonnescherm.afstandverklaring = !zonnescherm.afstandverklaring">
+          <div class="task-checkbox" :class="{ checked: zonnescherm.afstandverklaring }"></div>
+          <span>Afstandverklaring?</span>
+        </div>
+        <div>
+          <label>Opmerkingen</label>
+          <textarea v-model="zonnescherm.opmerkingen" rows="2"></textarea>
         </div>
       </div>
     </div>
@@ -230,6 +251,10 @@ const isLoading = () => {
         <div>
           <label>Telefoon bewoner</label>
           <input type="tel" v-model="diversen.telefoon" inputmode="tel" />
+        </div>
+        <div>
+          <label>Opmerkingen</label>
+          <textarea v-model="diversen.opmerkingen" rows="2"></textarea>
         </div>
       </div>
     </div>

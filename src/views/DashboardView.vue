@@ -126,13 +126,18 @@ function exportCSV() {
     'Huisnummer',
     'Medewerker',
     'Binnen (min)',
+    'Binnen opm.',
     'Balkon (min)',
+    'Balkon opm.',
     'Zonnescherm (min)',
     'Terugplaatsen',
+    'Afstandverklaring',
+    'Zonnescherm opm.',
     'Glasbreuk (min)',
     'Glasbreuk aantal',
     'Glasbreuk opm.',
     'Diversen (min)',
+    'Diversen opm.',
     'Bewoner naam',
     'Bewoner tel.',
     'Totaal (min)',
@@ -143,13 +148,18 @@ function exportCSV() {
     s.house_number,
     getWorkerName(s.worker_id),
     s.binnen_opruimen_min || '',
+    s.binnen_opruimen_opmerkingen || '',
     s.buiten_balkon_min || '',
+    s.buiten_balkon_opmerkingen || '',
     s.zonnescherm_verwijderd_min || '',
     s.zonnescherm_terugplaatsen ? 'Ja' : '',
+    s.zonnescherm_afstandverklaring ? 'Ja' : '',
+    s.zonnescherm_opmerkingen || '',
     s.glasbreuk_min || '',
     s.glasbreuk_aantal || '',
     s.glasbreuk_opmerkingen || '',
     s.diversen_min || '',
+    s.diversen_opmerkingen || '',
     s.bewoner_naam || '',
     s.bewoner_telefoon || '',
     getSessionTotalMinutes(s),
@@ -349,11 +359,24 @@ function printPage() {
               <span style="color: var(--color-text-light);">{{ formatDate(session.created_at) }}</span>
             </div>
             <div style="font-size: 14px;">
-              <div v-if="session.binnen_opruimen_min">✓ Binnen opruimen: {{ session.binnen_opruimen_min }} min</div>
-              <div v-if="session.buiten_balkon_min">✓ Balkon opruimen: {{ session.buiten_balkon_min }} min</div>
+              <div v-if="session.binnen_opruimen_min">
+                ✓ Binnen opruimen: {{ session.binnen_opruimen_min }} min
+                <div v-if="session.binnen_opruimen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.binnen_opruimen_opmerkingen }}
+                </div>
+              </div>
+              <div v-if="session.buiten_balkon_min">
+                ✓ Balkon opruimen: {{ session.buiten_balkon_min }} min
+                <div v-if="session.buiten_balkon_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.buiten_balkon_opmerkingen }}
+                </div>
+              </div>
               <div v-if="session.zonnescherm_verwijderd_min">
                 ✓ Zonnescherm: {{ session.zonnescherm_verwijderd_min }} min
-                <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen)</span>
+                <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen<span v-if="session.zonnescherm_afstandverklaring">, afstandverklaring</span>)</span>
+                <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.zonnescherm_opmerkingen }}
+                </div>
               </div>
               <div v-if="session.glasbreuk_min">
                 ✓ Glasbreuk: {{ session.glasbreuk_min }} min
@@ -366,6 +389,9 @@ function printPage() {
                 ✓ Diversen: {{ session.diversen_min }} min
                 <div v-if="session.bewoner_naam" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.bewoner_naam }} - {{ session.bewoner_telefoon }}
+                </div>
+                <div v-if="session.diversen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.diversen_opmerkingen }}
                 </div>
               </div>
               <div class="mt-sm" style="font-weight: 600;">
