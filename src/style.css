@@ -263,7 +263,7 @@ button,
 /* Page layout */
 .page {
   padding: var(--space-md);
-  padding-bottom: calc(var(--nav-height) + var(--space-lg));
+  padding-bottom: var(--space-lg);
   max-width: 600px;
   margin: 0 auto;
 }
@@ -476,12 +476,7 @@ button,
   border-radius: var(--radius-sm);
   cursor: pointer;
   min-height: 44px;
-}
-
-.sub-checkbox input[type="checkbox"] {
-  width: 24px;
-  height: 24px;
-  margin: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Utility classes */

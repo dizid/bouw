@@ -185,10 +185,10 @@ const isLoading = () => {
           <label>Minuten:</label>
           <input type="number" v-model="zonnescherm.minutes" min="0" inputmode="numeric" />
         </div>
-        <label class="sub-checkbox">
-          <input type="checkbox" v-model="zonnescherm.terugplaatsen" />
+        <div class="sub-checkbox" @click="zonnescherm.terugplaatsen = !zonnescherm.terugplaatsen">
+          <div class="task-checkbox" :class="{ checked: zonnescherm.terugplaatsen }"></div>
           <span>Terugplaatsen?</span>
-        </label>
+        </div>
       </div>
     </div>
 
