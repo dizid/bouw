@@ -10,12 +10,14 @@ const workersStore = useWorkersStore()
 const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
-const activeTab = ref<'medewerkers' | 'overzicht' | 'woningen'>('overzicht')
+const activeTab = ref<'medewerkers' | 'overzicht' | 'woningen' | 'fases'>('overzicht')
 const newWorkerName = ref('')
 const selectedWorkerId = ref<string | null>(null)
 const selectedHouse = ref<number | null>(null)
 const housePhotos = ref<SessionPhoto[]>([])
 const loadingPhotos = ref(false)
+const selectedFase = ref(1)
+const generatingPdf = ref(false)
 
 onMounted(async () => {
   await Promise.all([
@@ -232,6 +234,61 @@ function exportCSV() {
 function printPage() {
   window.print()
 }
+
+// Fases: houses in selected fase
+const faseHouses = computed(() => {
+  return sessionsStore.getHousesInFase(selectedFase.value)
+})
+
+// Data for fase table
+const faseHousesData = computed(() => {
+  return faseHouses.value.map(houseNum => {
+    const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
+    const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
+    const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
+    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
+    const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
+    const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
+    const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
+
+    return {
+      number: houseNum,
+      hours: (totalMin / 60).toFixed(1),
+      hasBinnen: binnenMin > 0,
+      hasBalkon: balkonMin > 0,
+      hasZonnescherm: zonneschermMin > 0,
+      hasGlasbreuk: glasbreukMin > 0,
+      hasDiversen: diversenMin > 0,
+    }
+  })
+})
+
+// Total hours for fase
+const faseTotalHours = computed(() => {
+  const total = faseHousesData.value.reduce((sum, h) => sum + parseFloat(h.hours), 0)
+  return total.toFixed(1)
+})
+
+// Generate PDF for fase
+async function generateFasePdf() {
+  generatingPdf.value = true
+  try {
+    const { generateFaseReport } = await import('@/lib/pdfGenerator')
+    await generateFaseReport(
+      selectedFase.value,
+      faseHousesData.value,
+      faseTotalHours.value,
+      sessionsStore.getSessionsForHouse,
+      photosStore.fetchPhotosForHouse,
+      photosStore.getPhotoUrl
+    )
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    alert('PDF generatie mislukt. Probeer opnieuw.')
+  } finally {
+    generatingPdf.value = false
+  }
+}
 </script>
 
 <template>
@@ -262,6 +319,13 @@ function printPage() {
         @click="activeTab = 'woningen'"
       >
         Per Woning
+      </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'fases' }"
+        @click="activeTab = 'fases'"
+      >
+        Fases
       </button>
     </div>
 
@@ -518,6 +582,77 @@ function printPage() {
         <p class="mt-md text-center" style="color: var(--color-text-light); font-size: 14px;">
           Tik op een rij voor details • Tijden in minuten
         </p>
+      </div>
+    </div>
+
+    <!-- Fases tab -->
+    <div v-if="activeTab === 'fases'">
+      <div class="card">
+        <h3 class="mb-md">Fase Rapport</h3>
+
+        <!-- Fase selector -->
+        <div class="form-group mb-md">
+          <label>Selecteer Fase</label>
+          <select v-model="selectedFase">
+            <option v-for="n in sessionsStore.totalFases" :key="n" :value="n">
+              Fase {{ n }} ({{ n === sessionsStore.totalFases ? 'lopend' : 'compleet' }})
+            </option>
+          </select>
+        </div>
+
+        <!-- PDF Export button -->
+        <button
+          class="btn btn-primary mb-md"
+          @click="generateFasePdf"
+          :disabled="generatingPdf || faseHouses.length === 0"
+          style="width: 100%;"
+        >
+          {{ generatingPdf ? 'PDF genereren...' : '📄 PDF Rapport Fase ' + selectedFase }}
+        </button>
+
+        <!-- Stats -->
+        <div class="form-row mb-md">
+          <div class="card text-center" style="background: var(--color-bg);">
+            <div style="font-size: 24px; font-weight: 700;">{{ faseHouses.length }}</div>
+            <div style="font-size: 14px;">Woningen</div>
+          </div>
+          <div class="card text-center" style="background: var(--color-bg);">
+            <div style="font-size: 24px; font-weight: 700;">{{ faseTotalHours }}</div>
+            <div style="font-size: 14px;">Uren totaal</div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div v-if="faseHousesData.length === 0" class="text-center">
+          Nog geen woningen in deze fase
+        </div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>Woning</th>
+              <th>Taken</th>
+              <th>Uren</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="house in faseHousesData" :key="house.number">
+              <td style="font-weight: 600;">{{ house.number }}</td>
+              <td style="font-size: 12px;">
+                <span v-if="house.hasBinnen">Binnen </span>
+                <span v-if="house.hasBalkon">Balkon </span>
+                <span v-if="house.hasZonnescherm">Zon </span>
+                <span v-if="house.hasGlasbreuk">Glas </span>
+                <span v-if="house.hasDiversen">Div</span>
+              </td>
+              <td>{{ house.hours }}</td>
+            </tr>
+            <tr style="font-weight: 700; background: var(--color-bg);">
+              <td>Totaal</td>
+              <td></td>
+              <td>{{ faseTotalHours }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

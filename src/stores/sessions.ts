@@ -152,6 +152,31 @@ export const useSessionsStore = defineStore('sessions', () => {
     }
   }
 
+  // Fases: houses ordered by first completion date
+  const housesInCompletionOrder = computed(() => {
+    const houseFirstDate = new Map<number, string>()
+    for (const s of sessions.value) {
+      const existing = houseFirstDate.get(s.house_number)
+      if (!existing || (s.created_at && s.created_at < existing)) {
+        houseFirstDate.set(s.house_number, s.created_at || '')
+      }
+    }
+    return [...houseFirstDate.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([num]) => num)
+  })
+
+  // Get houses in a specific fase (1-indexed, 50 houses per fase)
+  function getHousesInFase(faseNum: number) {
+    const start = (faseNum - 1) * 50
+    return housesInCompletionOrder.value.slice(start, start + 50)
+  }
+
+  // Total number of fases
+  const totalFases = computed(() =>
+    Math.ceil(housesInCompletionOrder.value.length / 50) || 1
+  )
+
   return {
     sessions,
     loading,
@@ -160,11 +185,14 @@ export const useSessionsStore = defineStore('sessions', () => {
     sessionsByHouse,
     housesWithSessions,
     stats,
+    housesInCompletionOrder,
+    totalFases,
     fetchSettings,
     fetchSessions,
     createSession,
     deleteSession,
     getSessionsForHouse,
     getWorkerStats,
+    getHousesInFase,
   }
 })
