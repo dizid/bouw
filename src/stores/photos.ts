@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { compressImage, generateStorageFilename } from '@/lib/imageCompression'
+import { compressImage, generateStorageFilename, generateThumbnail, getThumbnailPath } from '@/lib/imageCompression'
 import type { SessionPhoto, SessionPhotoInsert, CapturedPhoto } from '@/types'
 
 export const usePhotosStore = defineStore('photos', () => {
@@ -25,8 +25,9 @@ export const usePhotosStore = defineStore('photos', () => {
 
         // Generate unique path
         const storagePath = generateStorageFilename(sessionId)
+        const thumbnailPath = getThumbnailPath(storagePath)
 
-        // Upload to Supabase Storage
+        // Upload original to Supabase Storage
         const { error: uploadError } = await supabase.storage
           .from('session-photos')
           .upload(storagePath, compressed.blob, {
@@ -39,10 +40,25 @@ export const usePhotosStore = defineStore('photos', () => {
           throw uploadError
         }
 
+        // Generate and upload thumbnail
+        const thumbnailBlob = await generateThumbnail(compressed.blob)
+        const { error: thumbError } = await supabase.storage
+          .from('session-photos')
+          .upload(thumbnailPath, thumbnailBlob, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          })
+
+        if (thumbError) {
+          console.error('Thumbnail upload error:', thumbError)
+          // Don't fail if thumbnail upload fails, just log it
+        }
+
         // Save metadata to database
         const photoRecord: SessionPhotoInsert = {
           session_id: sessionId,
           storage_path: storagePath,
+          thumbnail_path: thumbError ? null : thumbnailPath,
           original_filename: photo.file.name,
           file_size: compressed.compressedSize,
         }
@@ -133,15 +149,24 @@ export const usePhotosStore = defineStore('photos', () => {
   }
 
   /**
-   * Get a thumbnail URL for a photo (uses Supabase transforms)
-   * Original image stays intact - transforms generate resized versions on-the-fly
+   * Get a thumbnail URL for a photo
+   * Uses pre-generated thumbnail if available, falls back to Supabase transforms
    */
-  function getPhotoThumbnailUrl(storagePath: string, width: number = 300): string {
+  function getPhotoThumbnailUrl(storagePath: string, thumbnailPath?: string | null): string {
+    // Use pre-generated thumbnail if available (instant loading)
+    if (thumbnailPath) {
+      const { data } = supabase.storage
+        .from('session-photos')
+        .getPublicUrl(thumbnailPath)
+      return data.publicUrl
+    }
+
+    // Fallback to Supabase transform (slower, cold start latency)
     const { data } = supabase.storage
       .from('session-photos')
       .getPublicUrl(storagePath, {
         transform: {
-          width,
+          width: 300,
           quality: 80
         }
       })

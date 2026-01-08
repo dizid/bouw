@@ -14,6 +14,7 @@ export type Database = {
           id: string
           session_id: string
           storage_path: string
+          thumbnail_path: string | null
           original_filename: string | null
           file_size: number | null
           created_at: string | null
@@ -22,6 +23,7 @@ export type Database = {
           id?: string
           session_id: string
           storage_path: string
+          thumbnail_path?: string | null
           original_filename?: string | null
           file_size?: number | null
           created_at?: string | null
@@ -30,6 +32,7 @@ export type Database = {
           id?: string
           session_id?: string
           storage_path?: string
+          thumbnail_path?: string | null
           original_filename?: string | null
           file_size?: number | null
           created_at?: string | null

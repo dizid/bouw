@@ -104,9 +104,9 @@ const faseTotalHours = computed(() => {
   return total.toFixed(1)
 })
 
-// Get photo URL (300px thumbnail for faster loading - originals stay intact)
+// Get photo URL (uses pre-generated thumbnail if available, else falls back to transform)
 function getPhotoUrl(photo: SessionPhoto): string {
-  return photosStore.getPhotoThumbnailUrl(photo.storage_path, 300)
+  return photosStore.getPhotoThumbnailUrl(photo.storage_path, photo.thumbnail_path)
 }
 
 // Track image load progress

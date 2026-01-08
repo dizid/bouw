@@ -64,10 +64,36 @@ function getImageDimensions(blob: Blob): Promise<{ width: number; height: number
 }
 
 /**
+ * Generate a thumbnail version of an image
+ * Used for fast loading in fase reports
+ */
+export async function generateThumbnail(
+  file: File | Blob,
+  maxWidth: number = 300
+): Promise<Blob> {
+  const options = {
+    maxSizeMB: 0.1,
+    maxWidthOrHeight: maxWidth,
+    useWebWorker: true,
+    fileType: 'image/jpeg' as const,
+    initialQuality: 0.8,
+  }
+
+  return await imageCompression(file as File, options)
+}
+
+/**
  * Generate a unique filename for storage
  */
 export function generateStorageFilename(sessionId: string): string {
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(2, 7)
   return `${sessionId}/${timestamp}_${random}.jpg`
+}
+
+/**
+ * Generate thumbnail path from original path
+ */
+export function getThumbnailPath(originalPath: string): string {
+  return `thumbnails/${originalPath}`
 }
