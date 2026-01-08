@@ -5,6 +5,7 @@ import type { Worker, WorkerInsert } from '@/types'
 
 export const useWorkersStore = defineStore('workers', () => {
   const workers = ref<Worker[]>([])
+  const allWorkers = ref<Worker[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -25,6 +26,20 @@ export const useWorkersStore = defineStore('workers', () => {
       console.error('Error fetching workers:', e)
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchAllWorkers() {
+    try {
+      const { data, error: err } = await supabase
+        .from('workers')
+        .select('*')
+        .order('name')
+
+      if (err) throw err
+      allWorkers.value = data || []
+    } catch (e) {
+      console.error('Error fetching all workers:', e)
     }
   }
 
@@ -76,9 +91,11 @@ export const useWorkersStore = defineStore('workers', () => {
 
   return {
     workers,
+    allWorkers,
     loading,
     error,
     fetchWorkers,
+    fetchAllWorkers,
     addWorker,
     removeWorker,
   }

@@ -19,15 +19,16 @@ const loadingPhotos = ref(false)
 onMounted(async () => {
   await Promise.all([
     workersStore.fetchWorkers(),
+    workersStore.fetchAllWorkers(),
     sessionsStore.fetchSessions(),
     sessionsStore.fetchSettings(),
   ])
 })
 
-// Get worker name by ID
+// Get worker name by ID (uses allWorkers to include inactive workers)
 function getWorkerName(workerId: string | null) {
   if (!workerId) return 'Onbekend'
-  const worker = workersStore.workers.find(w => w.id === workerId)
+  const worker = workersStore.allWorkers.find(w => w.id === workerId)
   return worker?.name || 'Onbekend'
 }
 
@@ -36,6 +37,13 @@ async function addWorker() {
   if (!newWorkerName.value.trim()) return
   await workersStore.addWorker(newWorkerName.value)
   newWorkerName.value = ''
+}
+
+// Remove worker with confirmation
+function confirmRemoveWorker(worker: { id: string; name: string }) {
+  if (confirm(`Weet je zeker dat je ${worker.name} wilt verwijderen?`)) {
+    workersStore.removeWorker(worker.id)
+  }
 }
 
 // Format date
@@ -251,7 +259,7 @@ function printPage() {
             <button
               class="btn btn-secondary"
               style="width: auto; height: 40px; padding: 0 12px; font-size: 14px;"
-              @click="if (confirm('Weet je zeker dat je ' + worker.name + ' wilt verwijderen?')) workersStore.removeWorker(worker.id)"
+              @click="confirmRemoveWorker(worker)"
             >
               ×
             </button>
