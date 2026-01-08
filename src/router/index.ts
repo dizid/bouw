@@ -12,6 +12,11 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),
   },
+  {
+    path: '/print/fase/:num',
+    name: 'print-fase',
+    component: () => import('@/views/FasePrintView.vue'),
+  },
 ]
 
 const router = createRouter({

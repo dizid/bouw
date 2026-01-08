@@ -17,7 +17,6 @@ const selectedHouse = ref<number | null>(null)
 const housePhotos = ref<SessionPhoto[]>([])
 const loadingPhotos = ref(false)
 const selectedFase = ref(1)
-const generatingPdf = ref(false)
 
 onMounted(async () => {
   await Promise.all([
@@ -269,25 +268,9 @@ const faseTotalHours = computed(() => {
   return total.toFixed(1)
 })
 
-// Generate PDF for fase
-async function generateFasePdf() {
-  generatingPdf.value = true
-  try {
-    const { generateFaseReport } = await import('@/lib/pdfGenerator')
-    await generateFaseReport(
-      selectedFase.value,
-      faseHousesData.value,
-      faseTotalHours.value,
-      sessionsStore.getSessionsForHouse,
-      photosStore.fetchPhotosForHouse,
-      photosStore.getPhotoUrl
-    )
-  } catch (err) {
-    console.error('PDF generation failed:', err)
-    alert('PDF generatie mislukt. Probeer opnieuw.')
-  } finally {
-    generatingPdf.value = false
-  }
+// Print URL for fase
+function getPrintUrl(fase: number) {
+  return `/print/fase/${fase}`
 }
 </script>
 
@@ -363,7 +346,7 @@ async function generateFasePdf() {
               @click="selectWorker(worker.id)"
             >{{ worker.name }}</span>
             <span style="color: var(--color-text-light); font-size: 14px;">
-              {{ sessionsStore.getWorkerStats(worker.id).sessions }} sessies
+              {{ sessionsStore.getWorkerStats(worker.id).sessions }} klussen
             </span>
             <button
               class="btn btn-secondary"
@@ -426,7 +409,7 @@ async function generateFasePdf() {
           <thead>
             <tr>
               <th>Naam</th>
-              <th>Sessies</th>
+              <th>Klussen</th>
               <th>Uren</th>
             </tr>
           </thead>
@@ -442,7 +425,7 @@ async function generateFasePdf() {
 
       <!-- Recent sessions -->
       <div class="card">
-        <h3 class="mb-md">Recente sessies</h3>
+        <h3 class="mb-md">Recente klussen</h3>
         <table class="data-table">
           <thead>
             <tr>
@@ -480,7 +463,7 @@ async function generateFasePdf() {
         </div>
 
         <div v-if="selectedHouseSessions.length === 0" class="text-center">
-          Geen sessies voor deze woning
+          Geen klussen voor deze woning
         </div>
 
         <div v-else>
@@ -542,6 +525,9 @@ async function generateFasePdf() {
       <!-- Houses table -->
       <div v-else class="card">
         <h3 class="mb-md">Woningen met werk ({{ housesTableData.length }})</h3>
+        <p class="mb-md text-center" style="color: var(--color-text-light); font-size: 14px;">
+          Tik op een rij voor details • Tijden in minuten
+        </p>
 
         <div v-if="housesTableData.length === 0" class="text-center">
           Nog geen werk geregistreerd
@@ -578,10 +564,6 @@ async function generateFasePdf() {
             </tbody>
           </table>
         </div>
-
-        <p class="mt-md text-center" style="color: var(--color-text-light); font-size: 14px;">
-          Tik op een rij voor details • Tijden in minuten
-        </p>
       </div>
     </div>
 
@@ -600,15 +582,16 @@ async function generateFasePdf() {
           </select>
         </div>
 
-        <!-- PDF Export button -->
-        <button
+        <!-- Print Report button -->
+        <a
+          :href="getPrintUrl(selectedFase)"
+          target="_blank"
           class="btn btn-primary mb-md"
-          @click="generateFasePdf"
-          :disabled="generatingPdf || faseHouses.length === 0"
-          style="width: 100%;"
+          :class="{ disabled: faseHouses.length === 0 }"
+          style="width: 100%; display: block; text-align: center; text-decoration: none;"
         >
-          {{ generatingPdf ? 'PDF genereren...' : '📄 PDF Rapport Fase ' + selectedFase }}
-        </button>
+          Print Rapport Fase {{ selectedFase }}
+        </a>
 
         <!-- Stats -->
         <div class="form-row mb-md">
@@ -630,7 +613,7 @@ async function generateFasePdf() {
           <thead>
             <tr>
               <th>Woning</th>
-              <th>Taken</th>
+              <th>Werkzaamheden</th>
               <th>Uren</th>
             </tr>
           </thead>

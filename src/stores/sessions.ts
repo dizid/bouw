@@ -76,7 +76,7 @@ export const useSessionsStore = defineStore('sessions', () => {
       if (err) throw err
       sessions.value = data || []
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Fout bij ophalen sessies'
+      error.value = e instanceof Error ? e.message : 'Fout bij ophalen klussen'
       console.error('Error fetching sessions:', e)
     } finally {
       loading.value = false
