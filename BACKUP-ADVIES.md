@@ -10,6 +10,11 @@
 - Doe dit minimaal wekelijks
 - Sla op in Google Drive of email naar jezelf
 
+## Aanbeveling 3: PDF Rapporten per Fase
+- Dashboard → Fases tab → PDF Rapport
+- Bevat alle woningen met taken + uren + foto's
+- Handig als archief per fase
+
 ## Geïmplementeerd: Soft Delete voor Sessies ✓
 - Verwijderde sessies blijven in database (onzichtbaar)
 - Kunnen via SQL worden teruggehaald indien nodig

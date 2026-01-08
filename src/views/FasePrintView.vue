@@ -130,7 +130,7 @@ const formattedDate = computed(() => {
 
       <!-- Header bar -->
       <header class="header-bar">
-        <span class="company">BREIJER</span>
+        <img src="/breijer_logo.png" alt="Breijer" class="logo" />
         <span class="date">{{ formattedDate }}</span>
       </header>
 
@@ -289,9 +289,9 @@ const formattedDate = computed(() => {
 /* Toolbar (screen only) */
 .toolbar {
   background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-  padding: 24px;
-  border-radius: 12px;
-  margin-bottom: 32px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
   text-align: center;
 }
 
@@ -299,10 +299,10 @@ const formattedDate = computed(() => {
   background: white;
   color: #1e3a5f;
   border: none;
-  padding: 16px 40px;
-  font-size: 16px;
+  padding: 10px 24px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
 }
@@ -313,9 +313,9 @@ const formattedDate = computed(() => {
 }
 
 .hint {
-  margin-top: 12px;
+  margin-top: 8px;
   color: rgba(255,255,255,0.8);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 /* Header bar */
@@ -329,11 +329,9 @@ const formattedDate = computed(() => {
   margin-bottom: 24px;
 }
 
-.company {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e3a5f;
-  letter-spacing: 2px;
+.logo {
+  height: 36px;
+  width: auto;
 }
 
 .date {

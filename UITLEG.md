@@ -38,6 +38,16 @@
 - Tabel met alle woningen + minuten per taak
 - Klik op rij = details + foto's bekijken
 
+**Tab: Fases**
+- Dropdown om fase te selecteren (1, 2, 3...)
+- Fase = eerste 50 afgeronde woningen op volgorde van afronding
+- Tabel met woningen in die fase + totaal uren
+- **PDF Rapport** knop = download PDF met:
+  - Samenvatting per woning
+  - Taken gedaan (checkmarks)
+  - Totaal uren
+  - Foto's
+
 ### Filteren
 - Klik medewerker naam → overzicht toont alleen die persoon
 - **× Wis filter** knop om terug te gaan naar alles
