@@ -20,14 +20,18 @@ onMounted(async () => {
 
   // Fetch photos for each house in this fase
   const houses = sessionsStore.getHousesInFase(faseNum.value)
+  const newPhotosByHouse: Record<number, SessionPhoto[]> = {}
+
   for (const houseNum of houses) {
     try {
-      photosByHouse.value[houseNum] = await photosStore.fetchPhotosForHouse(houseNum)
+      newPhotosByHouse[houseNum] = await photosStore.fetchPhotosForHouse(houseNum)
     } catch {
-      photosByHouse.value[houseNum] = []
+      newPhotosByHouse[houseNum] = []
     }
   }
 
+  // Assign all at once to trigger reactivity
+  photosByHouse.value = newPhotosByHouse
   loading.value = false
 })
 
