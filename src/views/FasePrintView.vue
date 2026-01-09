@@ -3,11 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePhotosStore } from '@/stores/photos'
+import { useWorkersStore } from '@/stores/workers'
 import type { SessionPhoto } from '@/types'
 
 const route = useRoute()
 const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
+const workersStore = useWorkersStore()
 
 const loading = ref(true)
 const imagesLoading = ref(true)
@@ -19,7 +21,11 @@ const faseNum = computed(() => Number(route.params.num) || 1)
 const photosByHouse = ref<Record<number, SessionPhoto[]>>({})
 
 onMounted(async () => {
-  await sessionsStore.fetchSessions()
+  // Fetch sessions and workers in parallel
+  await Promise.all([
+    sessionsStore.fetchSessions(),
+    workersStore.fetchAllWorkers()
+  ])
 
   // Fetch photos for all houses in this fase with single batch query
   const houses = sessionsStore.getHousesInFase(faseNum.value)
@@ -43,6 +49,13 @@ onMounted(async () => {
 // Houses in this fase
 const faseHouses = computed(() => sessionsStore.getHousesInFase(faseNum.value))
 
+// Helper: get worker name by ID
+function getWorkerName(workerId: string | null): string {
+  if (!workerId) return ''
+  const worker = workersStore.allWorkers.find(w => w.id === workerId)
+  return worker?.name || ''
+}
+
 // Data for each house
 const faseHousesData = computed(() => {
   return faseHouses.value.map(houseNum => {
@@ -54,6 +67,16 @@ const faseHousesData = computed(() => {
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
     const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
 
+    // Collect unique worker names for this house
+    const workerIds = new Set<string>()
+    houseSessions.forEach(s => {
+      if (s.worker_id) workerIds.add(s.worker_id)
+    })
+    const workerNames = [...workerIds]
+      .map(id => getWorkerName(id))
+      .filter(name => name)
+      .join(', ')
+
     return {
       number: houseNum,
       hours: (totalMin / 60).toFixed(1),
@@ -62,6 +85,7 @@ const faseHousesData = computed(() => {
       hasZonnescherm,
       hasGlasbreuk: glasbreukMin > 0,
       hasDiversen: diversenMin > 0,
+      workers: workerNames,
     }
   })
 })
@@ -226,37 +250,63 @@ const formattedDate = computed(() => {
         </div>
       </section>
 
-      <!-- Houses -->
+      <!-- Houses Table -->
       <section class="houses-section">
         <h2>Details per woning</h2>
 
-        <article v-for="house in faseHousesData" :key="house.number" class="house-card">
-          <div class="house-header">
-            <span class="house-number">Woning {{ house.number }}</span>
-            <span class="house-hours">{{ house.hours }} uur</span>
-          </div>
+        <!-- Legend -->
+        <div class="legend">
+          <span class="legend-item"><span class="t">B</span> = Binnen</span>
+          <span class="legend-item"><span class="t">Ba</span> = Balkon</span>
+          <span class="legend-item"><span class="t">Z</span> = Zonnescherm</span>
+          <span class="legend-item"><span class="t warn">G</span> = Glasbreuk</span>
+          <span class="legend-item"><span class="t">D</span> = Diversen</span>
+        </div>
 
-          <div class="tasks">
-            <span v-if="house.hasBinnen" class="task-pill">Binnen</span>
-            <span v-if="house.hasBalkon" class="task-pill">Balkon</span>
-            <span v-if="house.hasZonnescherm" class="task-pill">Zonnescherm</span>
-            <span v-if="house.hasGlasbreuk" class="task-pill warning">Glasbreuk</span>
-            <span v-if="house.hasDiversen" class="task-pill">Diversen</span>
-          </div>
-
-          <!-- Photos -->
-          <div v-if="photosByHouse[house.number]?.length" class="photos-grid">
-            <img
-              v-for="(photo, idx) in (photosByHouse[house.number] ?? []).slice(0, 6)"
-              :key="photo.id"
-              :src="getPhotoUrl(photo)"
-              :alt="'Foto ' + (idx + 1)"
-              class="photo"
-              @load="onImageLoad"
-              @error="hideImage"
-            />
-          </div>
-        </article>
+        <!-- Compact table -->
+        <table class="houses-table">
+          <thead>
+            <tr>
+              <th class="col-house">Woning</th>
+              <th class="col-hours">Uren</th>
+              <th class="col-tasks">Taken</th>
+              <th class="col-workers">Door</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="house in faseHousesData" :key="house.number">
+              <!-- Data row -->
+              <tr class="data-row">
+                <td class="house-num">{{ house.number }}</td>
+                <td class="hours">{{ house.hours }}</td>
+                <td class="tasks">
+                  <span v-if="house.hasBinnen" class="t">B</span>
+                  <span v-if="house.hasBalkon" class="t">Ba</span>
+                  <span v-if="house.hasZonnescherm" class="t">Z</span>
+                  <span v-if="house.hasGlasbreuk" class="t warn">G</span>
+                  <span v-if="house.hasDiversen" class="t">D</span>
+                </td>
+                <td class="workers">{{ house.workers }}</td>
+              </tr>
+              <!-- Photo row (if photos exist) -->
+              <tr v-if="photosByHouse[house.number]?.length" class="photo-row">
+                <td colspan="4">
+                  <div class="photos-inline">
+                    <img
+                      v-for="(photo, idx) in photosByHouse[house.number]"
+                      :key="photo.id"
+                      :src="getPhotoUrl(photo)"
+                      :alt="'Foto ' + (idx + 1)"
+                      class="photo-thumb"
+                      @load="onImageLoad"
+                      @error="hideImage"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </section>
 
       <!-- Footer -->
@@ -492,79 +542,131 @@ const formattedDate = computed(() => {
 }
 
 .houses-section h2 {
-  margin: 0 0 20px;
+  margin: 0 0 12px;
   font-size: 18px;
   font-weight: 600;
   color: #1e3a5f;
 }
 
-.house-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-left: 4px solid #3b82f6;
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
-  page-break-inside: avoid;
-}
-
-.house-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.house-number {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e3a5f;
-}
-
-.house-hours {
-  font-size: 15px;
-  font-weight: 600;
-  color: #374151;
-  background: #f1f5f9;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-.tasks {
+/* Legend */
+.legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
-.task-pill {
-  font-size: 12px;
-  font-weight: 500;
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Task indicators (compact) */
+.t {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
   color: #059669;
   background: #ecfdf5;
-  padding: 4px 12px;
-  border-radius: 20px;
+  padding: 2px 6px;
+  border-radius: 4px;
   border: 1px solid #a7f3d0;
+  margin-right: 3px;
 }
 
-.task-pill.warning {
+.t.warn {
   color: #d97706;
   background: #fffbeb;
   border-color: #fde68a;
 }
 
-.photos-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 12px;
+/* Compact table */
+.houses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.photo {
-  width: 100%;
-  height: 70px;
+.houses-table thead {
+  background: #1e3a5f;
+  color: white;
+}
+
+.houses-table th {
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.houses-table .col-house { width: 70px; }
+.houses-table .col-hours { width: 60px; }
+.houses-table .col-tasks { width: 120px; }
+.houses-table .col-workers { }
+
+.houses-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.houses-table .data-row:nth-child(4n+1),
+.houses-table .data-row:nth-child(4n+2) {
+  background: #f8fafc;
+}
+
+.houses-table .house-num {
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.houses-table .hours {
+  font-weight: 600;
+  color: #374151;
+}
+
+.houses-table .tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0;
+}
+
+.houses-table .workers {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Photo row */
+.photo-row td {
+  padding: 4px 8px 8px;
+  background: inherit;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.photos-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.photo-thumb {
+  height: 80px;
+  width: auto;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid #e2e8f0;
 }
 
@@ -628,28 +730,53 @@ const formattedDate = computed(() => {
     print-color-adjust: exact;
   }
 
-  .house-card {
-    margin-bottom: 10px;
-    padding: 12px 16px;
-    page-break-inside: avoid;
-    border-left: 3px solid #3b82f6;
+  /* Table print styles */
+  .houses-table {
+    font-size: 11px;
+    border: 1px solid #ccc;
+  }
+
+  .houses-table thead {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .task-pill {
+  .houses-table th {
+    padding: 6px;
+    font-size: 10px;
+  }
+
+  .houses-table td {
+    padding: 5px 6px;
+  }
+
+  .houses-table .data-row:nth-child(4n+1),
+  .houses-table .data-row:nth-child(4n+2) {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .photos-grid {
-    gap: 6px;
-  }
-
-  .photo {
-    height: 55px;
+  .t {
+    font-size: 9px;
+    padding: 1px 4px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .legend {
+    font-size: 10px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+  }
+
+  .photo-thumb {
+    height: 60px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .photos-inline {
+    gap: 3px;
   }
 
   .report-footer {

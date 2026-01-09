@@ -191,7 +191,7 @@ function getPrintUrl(fase: number) {
         :class="{ active: activeTab === 'fases' }"
         @click="activeTab = 'fases'"
       >
-        Fases
+        PDF
       </button>
     </div>
 
@@ -389,7 +389,7 @@ function getPrintUrl(fase: number) {
           :class="{ disabled: faseHouses.length === 0 }"
           style="width: 100%; display: block; text-align: center; text-decoration: none;"
         >
-          Print Rapport Fase {{ selectedFase }}
+          PDF Rapport Fase {{ selectedFase }}
         </a>
 
         <!-- Stats -->
