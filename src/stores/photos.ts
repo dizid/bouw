@@ -104,6 +104,43 @@ export const usePhotosStore = defineStore('photos', () => {
   }
 
   /**
+   * Fetch all photos for a worker (across all their sessions)
+   */
+  async function fetchPhotosForWorker(workerId: string): Promise<SessionPhoto[]> {
+    // Get session IDs for this worker
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('job_sessions')
+      .select('id')
+      .eq('worker_id', workerId)
+      .is('deleted_at', null)
+
+    if (sessionsError) {
+      console.error('Failed to fetch sessions:', sessionsError)
+      throw sessionsError
+    }
+
+    if (!sessions || sessions.length === 0) {
+      return []
+    }
+
+    const sessionIds = sessions.map((s) => s.id)
+
+    // Get photos for those sessions
+    const { data: photos, error: photosError } = await supabase
+      .from('session_photos')
+      .select('*')
+      .in('session_id', sessionIds)
+      .order('created_at', { ascending: false })
+
+    if (photosError) {
+      console.error('Failed to fetch photos:', photosError)
+      throw photosError
+    }
+
+    return (photos as SessionPhoto[]) || []
+  }
+
+  /**
    * Fetch all photos for a house (across all sessions)
    */
   async function fetchPhotosForHouse(houseNumber: number): Promise<SessionPhoto[]> {
@@ -247,6 +284,7 @@ export const usePhotosStore = defineStore('photos', () => {
     error,
     uploadPhotos,
     fetchPhotosForSession,
+    fetchPhotosForWorker,
     fetchPhotosForHouse,
     fetchPhotosForHouses,
     getPhotoUrl,

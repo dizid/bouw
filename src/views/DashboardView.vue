@@ -4,7 +4,7 @@ import { useWorkersStore } from '@/stores/workers'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePhotosStore } from '@/stores/photos'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import type { SessionPhoto } from '@/types'
+import type { SessionPhoto, Worker } from '@/types'
 
 const workersStore = useWorkersStore()
 const sessionsStore = useSessionsStore()
@@ -16,6 +16,11 @@ const searchHouseNumber = ref<number | null>(null)
 const housePhotos = ref<SessionPhoto[]>([])
 const loadingPhotos = ref(false)
 const selectedFase = ref(1)
+
+// Worker detail state
+const selectedWorker = ref<Worker | null>(null)
+const workerPhotos = ref<SessionPhoto[]>([])
+const loadingWorkerPhotos = ref(false)
 
 // Search for house by number
 function searchHouse() {
@@ -88,6 +93,40 @@ watch(selectedHouse, async (houseNum) => {
     }
   } else {
     housePhotos.value = []
+  }
+})
+
+// Sessions for selected worker (sorted by date, newest first)
+const selectedWorkerSessions = computed(() => {
+  if (!selectedWorker.value) return []
+  return sessionsStore.sessions
+    .filter(s => s.worker_id === selectedWorker.value!.id)
+    .sort((a, b) => {
+      const dateA = a.created_at || ''
+      const dateB = b.created_at || ''
+      return dateB.localeCompare(dateA)
+    })
+})
+
+// Select a worker to view details
+function selectWorker(worker: Worker) {
+  selectedWorker.value = worker
+}
+
+// Fetch photos when worker is selected
+watch(selectedWorker, async (worker) => {
+  if (worker) {
+    loadingWorkerPhotos.value = true
+    try {
+      workerPhotos.value = await photosStore.fetchPhotosForWorker(worker.id)
+    } catch (err) {
+      console.error('Failed to fetch worker photos:', err)
+      workerPhotos.value = []
+    } finally {
+      loadingWorkerPhotos.value = false
+    }
+  } else {
+    workerPhotos.value = []
   }
 })
 
@@ -197,8 +236,108 @@ function getPrintUrl(fase: number) {
 
     <!-- Medewerkers tab -->
     <div v-if="activeTab === 'medewerkers'">
-      <div class="card">
+      <!-- Worker detail view -->
+      <div v-if="selectedWorker" class="card">
+        <div class="form-row mb-md" style="align-items: center;">
+          <h3>{{ selectedWorker.name }}</h3>
+          <button
+            class="btn btn-secondary"
+            style="width: auto; height: 40px; padding: 0 16px;"
+            @click="selectedWorker = null"
+          >
+            ← Terug
+          </button>
+        </div>
+
+        <!-- Stats summary -->
+        <div class="form-row mb-md">
+          <div class="card text-center" style="background: var(--color-bg);">
+            <div style="font-size: 24px; font-weight: 700;">
+              {{ sessionsStore.getWorkerStats(selectedWorker.id).sessions }}
+            </div>
+            <div style="font-size: 14px;">Klussen</div>
+          </div>
+          <div class="card text-center" style="background: var(--color-bg);">
+            <div style="font-size: 24px; font-weight: 700;">
+              {{ sessionsStore.getWorkerStats(selectedWorker.id).houses }}
+            </div>
+            <div style="font-size: 14px;">Woningen</div>
+          </div>
+          <div class="card text-center" style="background: var(--color-bg);">
+            <div style="font-size: 24px; font-weight: 700;">
+              {{ sessionsStore.getWorkerStats(selectedWorker.id).totalHours }}
+            </div>
+            <div style="font-size: 14px;">Uren</div>
+          </div>
+        </div>
+
+        <!-- Sessions list -->
+        <h4 class="mb-sm">Werkhistorie ({{ selectedWorkerSessions.length }})</h4>
+        <div v-if="selectedWorkerSessions.length === 0" class="text-center mb-md">
+          Nog geen klussen geregistreerd
+        </div>
+        <div v-else>
+          <div v-for="session in selectedWorkerSessions" :key="session.id" class="card mb-sm" style="background: var(--color-bg);">
+            <div class="form-row mb-sm">
+              <strong>Woning {{ session.house_number }}</strong>
+              <span style="color: var(--color-text-light);">{{ formatDate(session.created_at) }}</span>
+            </div>
+            <div style="font-size: 14px;">
+              <div v-if="session.binnen_opruimen_min">
+                ✓ Binnen opruimen: {{ session.binnen_opruimen_min }} min
+                <div v-if="session.binnen_opruimen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.binnen_opruimen_opmerkingen }}
+                </div>
+              </div>
+              <div v-if="session.buiten_balkon_min">
+                ✓ Balkon opruimen: {{ session.buiten_balkon_min }} min
+                <div v-if="session.buiten_balkon_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.buiten_balkon_opmerkingen }}
+                </div>
+              </div>
+              <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
+                ✓ Zonnescherm
+                <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen<span v-if="session.zonnescherm_afstandverklaring">, afstandverklaring</span>)</span>
+                <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.zonnescherm_opmerkingen }}
+                </div>
+              </div>
+              <div v-if="session.glasbreuk_min">
+                ✓ Glasbreuk: {{ session.glasbreuk_min }} min
+                <span v-if="session.glasbreuk_aantal">({{ session.glasbreuk_aantal }}x)</span>
+                <div v-if="session.glasbreuk_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.glasbreuk_opmerkingen }}
+                </div>
+              </div>
+              <div v-if="session.diversen_min">
+                ✓ Diversen: {{ session.diversen_min }} min
+                <div v-if="session.bewoner_naam" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.bewoner_naam }} - {{ session.bewoner_telefoon }}
+                </div>
+                <div v-if="session.diversen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
+                  {{ session.diversen_opmerkingen }}
+                </div>
+              </div>
+              <div class="mt-sm" style="font-weight: 600;">
+                Totaal: {{ getSessionTotalMinutes(session) }} minuten
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Photos section -->
+        <div class="mt-md">
+          <h4 class="mb-sm">Foto's ({{ workerPhotos.length }})</h4>
+          <PhotoGallery :photos="workerPhotos" :loading="loadingWorkerPhotos" />
+        </div>
+      </div>
+
+      <!-- Worker list -->
+      <div v-else class="card">
         <h3 class="mb-md">Medewerkers ({{ workersStore.workers.length }})</h3>
+        <p class="mb-md text-center" style="color: var(--color-text-light); font-size: 14px;">
+          Tik op een medewerker voor details
+        </p>
         <div v-if="workersStore.workers.length === 0" class="text-center">
           Nog geen medewerkers
         </div>
@@ -207,7 +346,8 @@ function getPrintUrl(fase: number) {
             v-for="worker in workersStore.workers"
             :key="worker.id"
             class="form-row mb-sm"
-            style="align-items: center;"
+            style="align-items: center; cursor: pointer;"
+            @click="selectWorker(worker)"
           >
             <span style="flex: 1; font-weight: 600;">{{ worker.name }}</span>
             <span style="color: var(--color-text-light); font-size: 14px;">
@@ -216,7 +356,7 @@ function getPrintUrl(fase: number) {
             <button
               class="btn btn-secondary"
               style="width: auto; height: 40px; padding: 0 12px; font-size: 14px;"
-              @click="confirmRemoveWorker(worker)"
+              @click.stop="confirmRemoveWorker(worker)"
             >
               ×
             </button>
