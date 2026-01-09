@@ -14,7 +14,6 @@ const photosStore = usePhotosStore()
 const workerName = ref('')
 const houseNumber = ref<number | null>(null)
 const showSuccess = ref(false)
-const capturedPhotos = ref<CapturedPhoto[]>([])
 const uploadingPhotos = ref(false)
 
 // Autocomplete state
@@ -56,12 +55,12 @@ function handleWorkerBlur() {
   }, 150)
 }
 
-// Task states
-const binnenOpruimen = ref({ checked: false, minutes: null as number | null, opmerkingen: '' })
-const buitenBalkon = ref({ checked: false, minutes: null as number | null, opmerkingen: '' })
-const zonnescherm = ref({ checked: false, minutes: null as number | null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
+// Task states (binnenOpruimen, buitenBalkon, diversen have photos)
+const binnenOpruimen = ref({ checked: false, minutes: null as number | null, opmerkingen: '', photos: [] as CapturedPhoto[] })
+const buitenBalkon = ref({ checked: false, minutes: null as number | null, opmerkingen: '', photos: [] as CapturedPhoto[] })
+const zonnescherm = ref({ checked: false, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
 const glasbreuk = ref({ checked: false, minutes: null as number | null, aantal: null as number | null, opmerkingen: '' })
-const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '' })
+const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '', photos: [] as CapturedPhoto[] })
 
 // Load workers on mount and restore last worker name
 onMounted(async () => {
@@ -69,6 +68,13 @@ onMounted(async () => {
   const lastWorkerName = localStorage.getItem('lastWorkerName')
   if (lastWorkerName) {
     workerName.value = lastWorkerName
+    // Auto-confirm if name matches existing worker
+    const matchesExisting = workersStore.workers.some(
+      w => w.name.toLowerCase() === lastWorkerName.trim().toLowerCase()
+    )
+    if (matchesExisting) {
+      workerConfirmed.value = true
+    }
   }
 })
 
@@ -83,14 +89,16 @@ watch(workerName, (name) => {
 
 function resetForm() {
   houseNumber.value = null
-  binnenOpruimen.value = { checked: false, minutes: null, opmerkingen: '' }
-  buitenBalkon.value = { checked: false, minutes: null, opmerkingen: '' }
-  zonnescherm.value = { checked: false, minutes: null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' }
+  // Revoke photo URLs before clearing
+  binnenOpruimen.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
+  buitenBalkon.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
+  diversen.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
+  // Reset all task states
+  binnenOpruimen.value = { checked: false, minutes: null, opmerkingen: '', photos: [] }
+  buitenBalkon.value = { checked: false, minutes: null, opmerkingen: '', photos: [] }
+  zonnescherm.value = { checked: false, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' }
   glasbreuk.value = { checked: false, minutes: null, aantal: null, opmerkingen: '' }
-  diversen.value = { checked: false, minutes: null, naam: '', telefoon: '', opmerkingen: '' }
-  // Clear photos and revoke blob URLs
-  capturedPhotos.value.forEach(p => URL.revokeObjectURL(p.previewUrl))
-  capturedPhotos.value = []
+  diversen.value = { checked: false, minutes: null, naam: '', telefoon: '', opmerkingen: '', photos: [] }
 }
 
 async function handleSubmit() {
@@ -107,7 +115,7 @@ async function handleSubmit() {
     binnen_opruimen_opmerkingen: binnenOpruimen.value.checked ? binnenOpruimen.value.opmerkingen || null : null,
     buiten_balkon_min: buitenBalkon.value.checked ? buitenBalkon.value.minutes : null,
     buiten_balkon_opmerkingen: buitenBalkon.value.checked ? buitenBalkon.value.opmerkingen || null : null,
-    zonnescherm_verwijderd_min: zonnescherm.value.checked ? zonnescherm.value.minutes : null,
+    zonnescherm_verwijderd_min: null,
     zonnescherm_terugplaatsen: zonnescherm.value.checked ? zonnescherm.value.terugplaatsen : null,
     zonnescherm_afstandverklaring: zonnescherm.value.checked && zonnescherm.value.terugplaatsen ? zonnescherm.value.afstandverklaring : null,
     zonnescherm_opmerkingen: zonnescherm.value.checked ? zonnescherm.value.opmerkingen || null : null,
@@ -122,11 +130,23 @@ async function handleSubmit() {
 
   const result = await sessionsStore.createSession(session)
   if (result) {
-    // Upload photos if any
-    if (capturedPhotos.value.length > 0) {
+    // Upload photos per job type
+    const hasPhotos = binnenOpruimen.value.photos.length > 0 ||
+                      buitenBalkon.value.photos.length > 0 ||
+                      diversen.value.photos.length > 0
+    if (hasPhotos) {
       uploadingPhotos.value = true
       try {
-        await photosStore.uploadPhotos(result.id, capturedPhotos.value)
+        // Upload photos for each job type
+        if (binnenOpruimen.value.photos.length > 0) {
+          await photosStore.uploadPhotos(result.id, binnenOpruimen.value.photos, 'binnen_opruimen')
+        }
+        if (buitenBalkon.value.photos.length > 0) {
+          await photosStore.uploadPhotos(result.id, buitenBalkon.value.photos, 'buiten_balkon')
+        }
+        if (diversen.value.photos.length > 0) {
+          await photosStore.uploadPhotos(result.id, diversen.value.photos, 'diversen')
+        }
       } catch (err) {
         console.error('Failed to upload photos:', err)
         // Continue anyway - session is saved
@@ -152,7 +172,6 @@ const canSubmit = () => {
   // Check that selected tasks have minutes filled in
   if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return false
   if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return false
-  if (zonnescherm.value.checked && !zonnescherm.value.minutes) return false
   if (glasbreuk.value.checked && !glasbreuk.value.minutes) return false
   if (diversen.value.checked && !diversen.value.minutes) return false
   return true
@@ -207,13 +226,14 @@ const isLoading = () => {
         >
           Bevestig: {{ workerName.trim() }}
         </button>
-        <!-- Confirmed badge -->
-        <div v-if="workerConfirmed" class="confirmed-badge">
-          ✓ {{ workerName }}
-        </div>
-        <!-- Help text -->
+        <!-- Help text (shows confirmation status) -->
         <p class="field-help">
-          Kies of bevestig je naam
+          <template v-if="workerConfirmed">
+            <span class="confirmed-text">✓ {{ workerName }}</span>
+          </template>
+          <template v-else>
+            Kies of bevestig je naam
+          </template>
         </p>
       </div>
 
@@ -230,15 +250,6 @@ const isLoading = () => {
       </div>
     </div>
 
-    <!-- Photo capture -->
-    <div class="card">
-      <h3 class="mb-sm">Foto's situatie</h3>
-      <p style="color: var(--color-text-light); font-size: 14px; margin-bottom: var(--space-md);">
-        Maak foto's van de huidige situatie
-      </p>
-      <PhotoCapture v-model:photos="capturedPhotos" :disabled="isLoading()" />
-    </div>
-
     <!-- Task cards -->
     <div class="card task-card">
       <div class="task-header" @click="binnenOpruimen.checked = !binnenOpruimen.checked">
@@ -253,6 +264,10 @@ const isLoading = () => {
         <div>
           <label>Opmerkingen</label>
           <textarea v-model="binnenOpruimen.opmerkingen" rows="2"></textarea>
+        </div>
+        <div class="task-photos">
+          <label>Foto</label>
+          <PhotoCapture v-model:photos="binnenOpruimen.photos" :disabled="isLoading()" />
         </div>
       </div>
     </div>
@@ -271,6 +286,10 @@ const isLoading = () => {
           <label>Opmerkingen</label>
           <textarea v-model="buitenBalkon.opmerkingen" rows="2"></textarea>
         </div>
+        <div class="task-photos">
+          <label>Foto</label>
+          <PhotoCapture v-model:photos="buitenBalkon.photos" :disabled="isLoading()" />
+        </div>
       </div>
     </div>
 
@@ -280,10 +299,6 @@ const isLoading = () => {
         <span class="task-title">Zonnescherm verwijderen</span>
       </div>
       <div v-if="zonnescherm.checked" class="task-fields">
-        <div class="inline-field">
-          <label>Minuten:</label>
-          <input type="number" v-model="zonnescherm.minutes" min="0" inputmode="numeric" />
-        </div>
         <div class="sub-checkbox" @click="zonnescherm.terugplaatsen = !zonnescherm.terugplaatsen">
           <div class="task-checkbox" :class="{ checked: zonnescherm.terugplaatsen }"></div>
           <span>Terugplaatsen?</span>
@@ -341,6 +356,10 @@ const isLoading = () => {
         <div>
           <label>Opmerkingen</label>
           <textarea v-model="diversen.opmerkingen" rows="2"></textarea>
+        </div>
+        <div class="task-photos">
+          <label>Foto</label>
+          <PhotoCapture v-model:photos="diversen.photos" :disabled="isLoading()" />
         </div>
       </div>
     </div>

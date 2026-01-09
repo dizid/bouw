@@ -500,19 +500,10 @@ button,
   background: var(--color-success-dark);
 }
 
-/* Confirmed badge */
-.confirmed-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  background: #ecfdf5;
-  border: 2px solid var(--color-success);
-  border-radius: var(--radius-sm);
+/* Confirmed text (small inline) */
+.confirmed-text {
   color: var(--color-success-dark);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Field help text */

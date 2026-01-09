@@ -17,6 +17,7 @@ export type Database = {
           thumbnail_path: string | null
           original_filename: string | null
           file_size: number | null
+          job_type: string | null
           created_at: string | null
         }
         Insert: {
@@ -26,6 +27,7 @@ export type Database = {
           thumbnail_path?: string | null
           original_filename?: string | null
           file_size?: number | null
+          job_type?: string | null
           created_at?: string | null
         }
         Update: {
@@ -35,6 +37,7 @@ export type Database = {
           thumbnail_path?: string | null
           original_filename?: string | null
           file_size?: number | null
+          job_type?: string | null
           created_at?: string | null
         }
         Relationships: [

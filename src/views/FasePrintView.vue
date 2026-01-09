@@ -49,17 +49,17 @@ const faseHousesData = computed(() => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
+    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
-    const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
+    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
 
     return {
       number: houseNum,
       hours: (totalMin / 60).toFixed(1),
       hasBinnen: binnenMin > 0,
       hasBalkon: balkonMin > 0,
-      hasZonnescherm: zonneschermMin > 0,
+      hasZonnescherm,
       hasGlasbreuk: glasbreukMin > 0,
       hasDiversen: diversenMin > 0,
     }

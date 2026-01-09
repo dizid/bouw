@@ -10,13 +10,19 @@ const workersStore = useWorkersStore()
 const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
-const activeTab = ref<'medewerkers' | 'overzicht' | 'woningen' | 'fases'>('overzicht')
-const newWorkerName = ref('')
-const selectedWorkerId = ref<string | null>(null)
+const activeTab = ref<'medewerkers' | 'woningen' | 'fases'>('medewerkers')
 const selectedHouse = ref<number | null>(null)
+const searchHouseNumber = ref<number | null>(null)
 const housePhotos = ref<SessionPhoto[]>([])
 const loadingPhotos = ref(false)
 const selectedFase = ref(1)
+
+// Search for house by number
+function searchHouse() {
+  if (searchHouseNumber.value && searchHouseNumber.value > 0) {
+    selectedHouse.value = searchHouseNumber.value
+  }
+}
 
 onMounted(async () => {
   await Promise.all([
@@ -34,59 +40,11 @@ function getWorkerName(workerId: string | null) {
   return worker?.name || 'Onbekend'
 }
 
-// Add new worker
-async function addWorker() {
-  if (!newWorkerName.value.trim()) return
-  await workersStore.addWorker(newWorkerName.value)
-  newWorkerName.value = ''
-}
-
 // Remove worker with confirmation
 function confirmRemoveWorker(worker: { id: string; name: string }) {
   if (confirm(`Weet je zeker dat je ${worker.name} wilt verwijderen?`)) {
     workersStore.removeWorker(worker.id)
   }
-}
-
-// Filter sessions by worker
-const filteredSessions = computed(() => {
-  if (!selectedWorkerId.value) return sessionsStore.sessions
-  return sessionsStore.sessions.filter(s => s.worker_id === selectedWorkerId.value)
-})
-
-// Get selected worker name
-const selectedWorkerName = computed(() => {
-  if (!selectedWorkerId.value) return null
-  return workersStore.allWorkers.find(w => w.id === selectedWorkerId.value)?.name || 'Onbekend'
-})
-
-// Filtered stats
-const filteredStats = computed(() => {
-  const sessions = filteredSessions.value
-  const houses = new Set(sessions.map(s => s.house_number))
-  const totalMinutes = sessions.reduce((sum, s) => {
-    return sum +
-      (s.binnen_opruimen_min || 0) +
-      (s.buiten_balkon_min || 0) +
-      (s.zonnescherm_verwijderd_min || 0) +
-      (s.glasbreuk_min || 0) +
-      (s.diversen_min || 0)
-  }, 0)
-  return {
-    totalHouses: houses.size,
-    totalHours: (totalMinutes / 60).toFixed(1),
-  }
-})
-
-// Select worker to filter
-function selectWorker(workerId: string) {
-  selectedWorkerId.value = workerId
-  activeTab.value = 'overzicht'
-}
-
-// Clear worker filter
-function clearWorkerFilter() {
-  selectedWorkerId.value = null
 }
 
 // Format date
@@ -106,7 +64,6 @@ function formatDate(dateString: string | null) {
 function getSessionTotalMinutes(session: any) {
   return (session.binnen_opruimen_min || 0) +
     (session.buiten_balkon_min || 0) +
-    (session.zonnescherm_verwijderd_min || 0) +
     (session.glasbreuk_min || 0) +
     (session.diversen_min || 0)
 }
@@ -141,7 +98,6 @@ const housesTableData = computed(() => {
     sessions: number
     binnenMin: number
     balkonMin: number
-    zonneschermMin: number
     glasbreukMin: number
     diversenMin: number
     totalMin: number
@@ -151,7 +107,6 @@ const housesTableData = computed(() => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
 
@@ -160,79 +115,14 @@ const housesTableData = computed(() => {
       sessions: houseSessions.length,
       binnenMin,
       balkonMin,
-      zonneschermMin,
       glasbreukMin,
       diversenMin,
-      totalMin: binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin,
+      totalMin: binnenMin + balkonMin + glasbreukMin + diversenMin,
     })
   }
 
   return houses.sort((a, b) => a.number - b.number)
 })
-
-// Export to CSV
-function exportCSV() {
-  const headers = [
-    'Datum',
-    'Huisnummer',
-    'Medewerker',
-    'Binnen (min)',
-    'Binnen opm.',
-    'Balkon (min)',
-    'Balkon opm.',
-    'Zonnescherm (min)',
-    'Terugplaatsen',
-    'Afstandverklaring',
-    'Zonnescherm opm.',
-    'Glasbreuk (min)',
-    'Glasbreuk aantal',
-    'Glasbreuk opm.',
-    'Diversen (min)',
-    'Diversen opm.',
-    'Bewoner naam',
-    'Bewoner tel.',
-    'Totaal (min)',
-  ]
-
-  const rows = filteredSessions.value.map(s => [
-    formatDate(s.created_at),
-    s.house_number,
-    getWorkerName(s.worker_id),
-    s.binnen_opruimen_min || '',
-    s.binnen_opruimen_opmerkingen || '',
-    s.buiten_balkon_min || '',
-    s.buiten_balkon_opmerkingen || '',
-    s.zonnescherm_verwijderd_min || '',
-    s.zonnescherm_terugplaatsen ? 'Ja' : '',
-    s.zonnescherm_afstandverklaring ? 'Ja' : '',
-    s.zonnescherm_opmerkingen || '',
-    s.glasbreuk_min || '',
-    s.glasbreuk_aantal || '',
-    s.glasbreuk_opmerkingen || '',
-    s.diversen_min || '',
-    s.diversen_opmerkingen || '',
-    s.bewoner_naam || '',
-    s.bewoner_telefoon || '',
-    getSessionTotalMinutes(s),
-  ])
-
-  const csv = [headers, ...rows]
-    .map(row => row.map(cell => `"${cell}"`).join(','))
-    .join('\n')
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `breijer-klussen-${new Date().toISOString().split('T')[0]}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-// Print
-function printPage() {
-  window.print()
-}
 
 // Fases: houses in selected fase
 const faseHouses = computed(() => {
@@ -245,17 +135,17 @@ const faseHousesData = computed(() => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
+    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
-    const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
+    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
 
     return {
       number: houseNum,
       hours: (totalMin / 60).toFixed(1),
       hasBinnen: binnenMin > 0,
       hasBalkon: balkonMin > 0,
-      hasZonnescherm: zonneschermMin > 0,
+      hasZonnescherm,
       hasGlasbreuk: glasbreukMin > 0,
       hasDiversen: diversenMin > 0,
     }
@@ -291,13 +181,6 @@ function getPrintUrl(fase: number) {
       </button>
       <button
         class="tab"
-        :class="{ active: activeTab === 'overzicht' }"
-        @click="activeTab = 'overzicht'"
-      >
-        Overzicht
-      </button>
-      <button
-        class="tab"
         :class="{ active: activeTab === 'woningen' }"
         @click="activeTab = 'woningen'"
       >
@@ -315,21 +198,6 @@ function getPrintUrl(fase: number) {
     <!-- Medewerkers tab -->
     <div v-if="activeTab === 'medewerkers'">
       <div class="card">
-        <h3 class="mb-md">Medewerker toevoegen</h3>
-        <div class="form-row">
-          <input
-            type="text"
-            v-model="newWorkerName"
-            placeholder="Naam"
-            @keyup.enter="addWorker"
-          />
-          <button class="btn btn-primary" @click="addWorker" style="width: auto; padding: 0 24px;">
-            +
-          </button>
-        </div>
-      </div>
-
-      <div class="card">
         <h3 class="mb-md">Medewerkers ({{ workersStore.workers.length }})</h3>
         <div v-if="workersStore.workers.length === 0" class="text-center">
           Nog geen medewerkers
@@ -341,10 +209,7 @@ function getPrintUrl(fase: number) {
             class="form-row mb-sm"
             style="align-items: center;"
           >
-            <span
-              style="flex: 1; font-weight: 600; cursor: pointer; text-decoration: underline;"
-              @click="selectWorker(worker.id)"
-            >{{ worker.name }}</span>
+            <span style="flex: 1; font-weight: 600;">{{ worker.name }}</span>
             <span style="color: var(--color-text-light); font-size: 14px;">
               {{ sessionsStore.getWorkerStats(worker.id).sessions }} klussen
             </span>
@@ -360,95 +225,31 @@ function getPrintUrl(fase: number) {
       </div>
     </div>
 
-    <!-- Overzicht tab -->
-    <div v-if="activeTab === 'overzicht'">
-      <!-- Filter indicator -->
-      <div v-if="selectedWorkerId" class="card" style="background: var(--color-primary); color: white;">
-        <div class="form-row" style="align-items: center;">
-          <span style="flex: 1;">Gefilterd op: <strong>{{ selectedWorkerName }}</strong></span>
+    <!-- Per Woning tab -->
+    <div v-if="activeTab === 'woningen'">
+      <!-- House search -->
+      <div class="card">
+        <h3 class="mb-sm">Zoek woning</h3>
+        <div class="form-row">
+          <input
+            type="number"
+            v-model="searchHouseNumber"
+            placeholder="Huisnummer"
+            inputmode="numeric"
+            min="1"
+            @keyup.enter="searchHouse"
+          />
           <button
-            class="btn"
-            style="width: auto; padding: 0 16px; background: white; color: var(--color-primary);"
-            @click="clearWorkerFilter"
+            class="btn btn-primary"
+            style="width: auto; padding: 0 24px;"
+            @click="searchHouse"
+            :disabled="!searchHouseNumber"
           >
-            × Wis filter
+            Zoek
           </button>
         </div>
       </div>
 
-      <!-- Stats cards -->
-      <div class="form-row mb-md">
-        <div class="card text-center">
-          <div style="font-size: 32px; font-weight: 700; color: var(--color-primary);">
-            {{ filteredStats.totalHouses }}
-          </div>
-          <div style="font-size: 14px; color: var(--color-text-light);">Woningen</div>
-        </div>
-        <div class="card text-center">
-          <div style="font-size: 32px; font-weight: 700; color: var(--color-primary);">
-            {{ filteredStats.totalHours }}
-          </div>
-          <div style="font-size: 14px; color: var(--color-text-light);">Uren totaal</div>
-        </div>
-      </div>
-
-      <!-- Export buttons -->
-      <div class="form-row mb-md">
-        <button class="btn btn-secondary" @click="printPage">
-          🖨️ Print
-        </button>
-        <button class="btn btn-secondary" @click="exportCSV">
-          📊 CSV
-        </button>
-      </div>
-
-      <!-- Per worker stats -->
-      <div class="card">
-        <h3 class="mb-md">Per medewerker</h3>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Naam</th>
-              <th>Klussen</th>
-              <th>Uren</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="worker in workersStore.workers" :key="worker.id">
-              <td>{{ worker.name }}</td>
-              <td>{{ sessionsStore.getWorkerStats(worker.id).sessions }}</td>
-              <td>{{ sessionsStore.getWorkerStats(worker.id).totalHours }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Recent sessions -->
-      <div class="card">
-        <h3 class="mb-md">Recente klussen</h3>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Datum</th>
-              <th>Huis</th>
-              <th>Wie</th>
-              <th>Min</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="session in filteredSessions.slice(0, 20)" :key="session.id">
-              <td>{{ formatDate(session.created_at) }}</td>
-              <td>{{ session.house_number }}</td>
-              <td>{{ getWorkerName(session.worker_id) }}</td>
-              <td>{{ getSessionTotalMinutes(session) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Per Woning tab -->
-    <div v-if="activeTab === 'woningen'">
       <!-- House detail view -->
       <div v-if="selectedHouse" class="card">
         <div class="form-row mb-md" style="align-items: center;">
@@ -485,8 +286,8 @@ function getPrintUrl(fase: number) {
                   {{ session.buiten_balkon_opmerkingen }}
                 </div>
               </div>
-              <div v-if="session.zonnescherm_verwijderd_min">
-                ✓ Zonnescherm: {{ session.zonnescherm_verwijderd_min }} min
+              <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
+                ✓ Zonnescherm
                 <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen<span v-if="session.zonnescherm_afstandverklaring">, afstandverklaring</span>)</span>
                 <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.zonnescherm_opmerkingen }}
@@ -540,7 +341,6 @@ function getPrintUrl(fase: number) {
                 <th>Huis</th>
                 <th>Binnen</th>
                 <th>Balkon</th>
-                <th>Zonnesch.</th>
                 <th>Glas</th>
                 <th>Div.</th>
                 <th>Totaal</th>
@@ -556,7 +356,6 @@ function getPrintUrl(fase: number) {
                 <td style="font-weight: 600;">{{ house.number }}</td>
                 <td>{{ house.binnenMin || '-' }}</td>
                 <td>{{ house.balkonMin || '-' }}</td>
-                <td>{{ house.zonneschermMin || '-' }}</td>
                 <td>{{ house.glasbreukMin || '-' }}</td>
                 <td>{{ house.diversenMin || '-' }}</td>
                 <td style="font-weight: 600;">{{ house.totalMin }}</td>

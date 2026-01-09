@@ -33,7 +33,6 @@ export const useSessionsStore = defineStore('sessions', () => {
       return sum +
         (s.binnen_opruimen_min || 0) +
         (s.buiten_balkon_min || 0) +
-        (s.zonnescherm_verwijderd_min || 0) +
         (s.glasbreuk_min || 0) +
         (s.diversen_min || 0)
     }, 0)
@@ -139,7 +138,6 @@ export const useSessionsStore = defineStore('sessions', () => {
       return sum +
         (s.binnen_opruimen_min || 0) +
         (s.buiten_balkon_min || 0) +
-        (s.zonnescherm_verwijderd_min || 0) +
         (s.glasbreuk_min || 0) +
         (s.diversen_min || 0)
     }, 0)

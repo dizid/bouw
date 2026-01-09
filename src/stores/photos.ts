@@ -14,6 +14,7 @@ export const usePhotosStore = defineStore('photos', () => {
   async function uploadPhotos(
     sessionId: string,
     photos: CapturedPhoto[],
+    jobType?: string,
     onProgress?: (photoId: string, progress: number) => void
   ): Promise<string[]> {
     const storagePaths: string[] = []
@@ -61,6 +62,7 @@ export const usePhotosStore = defineStore('photos', () => {
           thumbnail_path: thumbError ? null : thumbnailPath,
           original_filename: photo.file.name,
           file_size: compressed.compressedSize,
+          job_type: jobType || null,
         }
 
         const { error: dbError } = await supabase
@@ -177,6 +179,7 @@ export const usePhotosStore = defineStore('photos', () => {
           thumbnail_path: row.thumbnail_path,
           original_filename: row.original_filename,
           file_size: row.file_size,
+          job_type: row.job_type,
           created_at: row.created_at,
         }
         if (byHouse[houseNum]) {

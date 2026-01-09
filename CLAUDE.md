@@ -48,12 +48,18 @@ src/
 
 ## Conventions
 
+- keep uploaded original images at all times!
 - Use `@/` alias for src imports (e.g., `@/stores/counter`)
 - Stores use Composition API style (setup function with refs/computed)
 - Routes are lazy-loaded with dynamic imports
 
 ## Design Guidelines
-
+## Preferences
+- Act like a senior developer
+- Write complete, working code - no mocks, stubs, or TODOs
+- Use clear comments in code
+- Keep existing working code intact when adding features
+- Modular, maintainable structure
 **Target users:** Construction workers on job sites
 **Primary device:** Mobile phone (design mobile-first, desktop is secondary)
 
@@ -82,3 +88,15 @@ src/
 - Lists: Generous row height (64px+), clear tap targets
 - Feedback: Obvious success/error states that persist until dismissed
 - Navigation: Bottom tab bar for primary nav (thumb zone)
+
+## Preferences
+- Act like a senior developer
+- Write complete, working code - no mocks, stubs, or TODOs
+- Use clear comments in code
+- Keep existing working code intact when adding features
+- Modular, maintainable structure## Preferences
+- Act like a senior developer
+- Write complete, working code - no mocks, stubs, or TODOs
+- Use clear comments in code
+- Keep existing working code intact when adding features
+- Modular, maintainable structure
