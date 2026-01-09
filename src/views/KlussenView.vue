@@ -387,7 +387,7 @@ const isLoading = () => {
     </button>
 
     <!-- Validation feedback -->
-    <p v-if="submitValidationMessage && !isLoading()" class="text-center mt-sm" style="color: var(--color-text-light); font-size: 14px;">
+    <p v-if="submitValidationMessage && !isLoading()" class="text-center mt-sm" style="color: #dc2626; font-size: 16px; font-weight: bold;">
       {{ submitValidationMessage }}
     </p>
 
