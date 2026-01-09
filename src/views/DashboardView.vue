@@ -65,12 +65,19 @@ function formatDate(dateString: string | null) {
   })
 }
 
-// Calculate total minutes for a session
-function getSessionTotalMinutes(session: any) {
-  return (session.binnen_opruimen_min || 0) +
+// Calculate total hours for a session
+function getSessionTotalHours(session: any) {
+  const totalMin = (session.binnen_opruimen_min || 0) +
     (session.buiten_balkon_min || 0) +
     (session.glasbreuk_min || 0) +
     (session.diversen_min || 0)
+  return (totalMin / 60).toFixed(1)
+}
+
+// Convert minutes to hours
+function minToHours(min: number | null) {
+  if (!min) return null
+  return (min / 60).toFixed(1)
 }
 
 // Sessions for selected house
@@ -130,33 +137,37 @@ watch(selectedWorker, async (worker) => {
   }
 })
 
-// Aggregated data per house for the table
+// Aggregated data per house for the table (in hours)
 const housesTableData = computed(() => {
   const houses: {
     number: number
     sessions: number
-    binnenMin: number
-    balkonMin: number
-    glasbreukMin: number
-    diversenMin: number
-    totalMin: number
+    binnenHours: string | null
+    balkonHours: string | null
+    hasZonnescherm: boolean
+    glasbreukHours: string | null
+    diversenHours: string | null
+    totalHours: string
   }[] = []
 
   for (const houseNum of sessionsStore.housesWithSessions) {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
+    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
+    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
 
     houses.push({
       number: houseNum,
       sessions: houseSessions.length,
-      binnenMin,
-      balkonMin,
-      glasbreukMin,
-      diversenMin,
-      totalMin: binnenMin + balkonMin + glasbreukMin + diversenMin,
+      binnenHours: binnenMin > 0 ? (binnenMin / 60).toFixed(1) : null,
+      balkonHours: balkonMin > 0 ? (balkonMin / 60).toFixed(1) : null,
+      hasZonnescherm,
+      glasbreukHours: glasbreukMin > 0 ? (glasbreukMin / 60).toFixed(1) : null,
+      diversenHours: diversenMin > 0 ? (diversenMin / 60).toFixed(1) : null,
+      totalHours: (totalMin / 60).toFixed(1),
     })
   }
 
@@ -166,35 +177,6 @@ const housesTableData = computed(() => {
 // Fases: houses in selected fase
 const faseHouses = computed(() => {
   return sessionsStore.getHousesInFase(selectedFase.value)
-})
-
-// Data for fase table
-const faseHousesData = computed(() => {
-  return faseHouses.value.map(houseNum => {
-    const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
-    const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
-    const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
-    const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
-    const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
-    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
-
-    return {
-      number: houseNum,
-      hours: (totalMin / 60).toFixed(1),
-      hasBinnen: binnenMin > 0,
-      hasBalkon: balkonMin > 0,
-      hasZonnescherm,
-      hasGlasbreuk: glasbreukMin > 0,
-      hasDiversen: diversenMin > 0,
-    }
-  })
-})
-
-// Total hours for fase
-const faseTotalHours = computed(() => {
-  const total = faseHousesData.value.reduce((sum, h) => sum + parseFloat(h.hours), 0)
-  return total.toFixed(1)
 })
 
 // Print URL for fase
@@ -279,38 +261,41 @@ function getPrintUrl(fase: number) {
         <div v-else>
           <div v-for="session in selectedWorkerSessions" :key="session.id" class="card mb-sm" style="background: var(--color-bg);">
             <div class="form-row mb-sm">
-              <strong>Woning {{ session.house_number }}</strong>
+              <strong
+                style="cursor: pointer; text-decoration: underline; color: var(--color-primary);"
+                @click="activeTab = 'woningen'; selectedHouse = session.house_number"
+              >Woning {{ session.house_number }}</strong>
               <span style="color: var(--color-text-light);">{{ formatDate(session.created_at) }}</span>
             </div>
             <div style="font-size: 14px;">
               <div v-if="session.binnen_opruimen_min">
-                ✓ Binnen opruimen: {{ session.binnen_opruimen_min }} min
+                ✓ Binnen opruimen: {{ minToHours(session.binnen_opruimen_min) }} uur
                 <div v-if="session.binnen_opruimen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.binnen_opruimen_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.buiten_balkon_min">
-                ✓ Balkon opruimen: {{ session.buiten_balkon_min }} min
+                ✓ Balkon opruimen: {{ minToHours(session.buiten_balkon_min) }} uur
                 <div v-if="session.buiten_balkon_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.buiten_balkon_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
                 ✓ Zonnescherm
-                <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen<span v-if="session.zonnescherm_afstandverklaring">, afstandverklaring</span>)</span>
+                (terugplaatsen: {{ session.zonnescherm_terugplaatsen ? 'ja' : 'nee' }}, afstandverklaring: {{ session.zonnescherm_afstandverklaring ? 'ja' : 'nee' }})
                 <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.zonnescherm_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.glasbreuk_min">
-                ✓ Glasbreuk: {{ session.glasbreuk_min }} min
+                ✓ Glasbreuk: {{ minToHours(session.glasbreuk_min) }} uur
                 <span v-if="session.glasbreuk_aantal">({{ session.glasbreuk_aantal }}x)</span>
                 <div v-if="session.glasbreuk_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.glasbreuk_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.diversen_min">
-                ✓ Diversen: {{ session.diversen_min }} min
+                ✓ Diversen: {{ minToHours(session.diversen_min) }} uur
                 <div v-if="session.bewoner_naam" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.bewoner_naam }} - {{ session.bewoner_telefoon }}
                 </div>
@@ -319,7 +304,7 @@ function getPrintUrl(fase: number) {
                 </div>
               </div>
               <div class="mt-sm" style="font-weight: 600;">
-                Totaal: {{ getSessionTotalMinutes(session) }} minuten
+                Totaal: {{ getSessionTotalHours(session) }} uur
               </div>
             </div>
           </div>
@@ -351,15 +336,8 @@ function getPrintUrl(fase: number) {
           >
             <span style="flex: 1; font-weight: 600;">{{ worker.name }}</span>
             <span style="color: var(--color-text-light); font-size: 14px;">
-              {{ sessionsStore.getWorkerStats(worker.id).sessions }} klussen
+              {{ sessionsStore.getWorkerStats(worker.id).totalHours }} uur
             </span>
-            <button
-              class="btn btn-secondary"
-              style="width: auto; height: 40px; padding: 0 12px; font-size: 14px;"
-              @click.stop="confirmRemoveWorker(worker)"
-            >
-              ×
-            </button>
           </div>
         </div>
       </div>
@@ -415,33 +393,33 @@ function getPrintUrl(fase: number) {
             </div>
             <div style="font-size: 14px;">
               <div v-if="session.binnen_opruimen_min">
-                ✓ Binnen opruimen: {{ session.binnen_opruimen_min }} min
+                ✓ Binnen opruimen: {{ minToHours(session.binnen_opruimen_min) }} uur
                 <div v-if="session.binnen_opruimen_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.binnen_opruimen_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.buiten_balkon_min">
-                ✓ Balkon opruimen: {{ session.buiten_balkon_min }} min
+                ✓ Balkon opruimen: {{ minToHours(session.buiten_balkon_min) }} uur
                 <div v-if="session.buiten_balkon_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.buiten_balkon_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
                 ✓ Zonnescherm
-                <span v-if="session.zonnescherm_terugplaatsen">(terugplaatsen<span v-if="session.zonnescherm_afstandverklaring">, afstandverklaring</span>)</span>
+                (terugplaatsen: {{ session.zonnescherm_terugplaatsen ? 'ja' : 'nee' }}, afstandverklaring: {{ session.zonnescherm_afstandverklaring ? 'ja' : 'nee' }})
                 <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.zonnescherm_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.glasbreuk_min">
-                ✓ Glasbreuk: {{ session.glasbreuk_min }} min
+                ✓ Glasbreuk: {{ minToHours(session.glasbreuk_min) }} uur
                 <span v-if="session.glasbreuk_aantal">({{ session.glasbreuk_aantal }}x)</span>
                 <div v-if="session.glasbreuk_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.glasbreuk_opmerkingen }}
                 </div>
               </div>
               <div v-if="session.diversen_min">
-                ✓ Diversen: {{ session.diversen_min }} min
+                ✓ Diversen: {{ minToHours(session.diversen_min) }} uur
                 <div v-if="session.bewoner_naam" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.bewoner_naam }} - {{ session.bewoner_telefoon }}
                 </div>
@@ -450,7 +428,7 @@ function getPrintUrl(fase: number) {
                 </div>
               </div>
               <div class="mt-sm" style="font-weight: 600;">
-                Totaal: {{ getSessionTotalMinutes(session) }} minuten
+                Totaal: {{ getSessionTotalHours(session) }} uur
               </div>
             </div>
           </div>
@@ -467,7 +445,7 @@ function getPrintUrl(fase: number) {
       <div v-else class="card">
         <h3 class="mb-md">Woningen met werk ({{ housesTableData.length }})</h3>
         <p class="mb-md text-center" style="color: var(--color-text-light); font-size: 14px;">
-          Tik op een rij voor details • Tijden in minuten
+          Tik op een rij voor details • Tijden in uren
         </p>
 
         <div v-if="housesTableData.length === 0" class="text-center">
@@ -481,6 +459,7 @@ function getPrintUrl(fase: number) {
                 <th>Huis</th>
                 <th>Binnen</th>
                 <th>Balkon</th>
+                <th>Zon</th>
                 <th>Glas</th>
                 <th>Div.</th>
                 <th>Totaal</th>
@@ -494,11 +473,12 @@ function getPrintUrl(fase: number) {
                 style="cursor: pointer;"
               >
                 <td style="font-weight: 600;">{{ house.number }}</td>
-                <td>{{ house.binnenMin || '-' }}</td>
-                <td>{{ house.balkonMin || '-' }}</td>
-                <td>{{ house.glasbreukMin || '-' }}</td>
-                <td>{{ house.diversenMin || '-' }}</td>
-                <td style="font-weight: 600;">{{ house.totalMin }}</td>
+                <td>{{ house.binnenHours || '-' }}</td>
+                <td>{{ house.balkonHours || '-' }}</td>
+                <td>{{ house.hasZonnescherm ? 'Ja' : '-' }}</td>
+                <td>{{ house.glasbreukHours || '-' }}</td>
+                <td>{{ house.diversenHours || '-' }}</td>
+                <td style="font-weight: 600;">{{ house.totalHours }}</td>
               </tr>
             </tbody>
           </table>
@@ -525,56 +505,12 @@ function getPrintUrl(fase: number) {
         <a
           :href="getPrintUrl(selectedFase)"
           target="_blank"
-          class="btn btn-primary mb-md"
+          class="btn btn-primary"
           :class="{ disabled: faseHouses.length === 0 }"
           style="width: 100%; display: block; text-align: center; text-decoration: none;"
         >
           PDF Rapport Fase {{ selectedFase }}
         </a>
-
-        <!-- Stats -->
-        <div class="form-row mb-md">
-          <div class="card text-center" style="background: var(--color-bg);">
-            <div style="font-size: 24px; font-weight: 700;">{{ faseHouses.length }}</div>
-            <div style="font-size: 14px;">Woningen</div>
-          </div>
-          <div class="card text-center" style="background: var(--color-bg);">
-            <div style="font-size: 24px; font-weight: 700;">{{ faseTotalHours }}</div>
-            <div style="font-size: 14px;">Uren totaal</div>
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div v-if="faseHousesData.length === 0" class="text-center">
-          Nog geen woningen in deze fase
-        </div>
-        <table v-else class="data-table">
-          <thead>
-            <tr>
-              <th>Woning</th>
-              <th>Werkzaamheden</th>
-              <th>Uren</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="house in faseHousesData" :key="house.number">
-              <td style="font-weight: 600;">{{ house.number }}</td>
-              <td style="font-size: 12px;">
-                <span v-if="house.hasBinnen">Binnen </span>
-                <span v-if="house.hasBalkon">Balkon </span>
-                <span v-if="house.hasZonnescherm">Zon </span>
-                <span v-if="house.hasGlasbreuk">Glas </span>
-                <span v-if="house.hasDiversen">Div</span>
-              </td>
-              <td>{{ house.hours }}</td>
-            </tr>
-            <tr style="font-weight: 700; background: var(--color-bg);">
-              <td>Totaal</td>
-              <td></td>
-              <td>{{ faseTotalHours }}</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>

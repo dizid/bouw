@@ -177,6 +177,19 @@ const canSubmit = () => {
   return true
 }
 
+// Validation message for disabled submit button
+const submitValidationMessage = computed(() => {
+  if (uploadingPhotos.value) return null
+  if (!workerName.value.trim()) return 'Vul medewerker in'
+  if (!workerConfirmed.value) return 'Bevestig medewerker naam'
+  if (!houseNumber.value || houseNumber.value <= 0) return 'Vul huisnummer in'
+  if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return 'Vul minuten in voor Binnen opruimen'
+  if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return 'Vul minuten in voor Buiten balkon'
+  if (glasbreuk.value.checked && !glasbreuk.value.minutes) return 'Vul minuten in voor Glasbreuk'
+  if (diversen.value.checked && !diversen.value.minutes) return 'Vul minuten in voor Diversen'
+  return null
+})
+
 const isLoading = () => {
   return sessionsStore.loading || uploadingPhotos.value
 }
@@ -243,7 +256,7 @@ const isLoading = () => {
           id="house"
           type="number"
           v-model="houseNumber"
-          placeholder="Bijv. 42"
+          placeholder="Belangrijk: vul juiste huisnummer in"
           min="1"
           inputmode="numeric"
         />
@@ -372,6 +385,11 @@ const isLoading = () => {
     >
       {{ uploadingPhotos ? "Foto's uploaden..." : sessionsStore.loading ? 'Opslaan...' : 'Opslaan' }}
     </button>
+
+    <!-- Validation feedback -->
+    <p v-if="submitValidationMessage && !isLoading()" class="text-center mt-sm" style="color: var(--color-text-light); font-size: 14px;">
+      {{ submitValidationMessage }}
+    </p>
 
     <!-- Error message -->
     <p v-if="sessionsStore.error" class="text-center mt-md" style="color: var(--color-error)">

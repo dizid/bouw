@@ -20,6 +20,22 @@ const faseNum = computed(() => Number(route.params.num) || 1)
 // Photos indexed by house number
 const photosByHouse = ref<Record<number, SessionPhoto[]>>({})
 
+// Lightbox state
+const selectedPhoto = ref<SessionPhoto | null>(null)
+
+function openPhoto(photo: SessionPhoto) {
+  selectedPhoto.value = photo
+}
+
+function closePhoto() {
+  selectedPhoto.value = null
+}
+
+function getFullResUrl(): string {
+  if (!selectedPhoto.value) return ''
+  return photosStore.getPhotoUrl(selectedPhoto.value.storage_path)
+}
+
 onMounted(async () => {
   // Fetch sessions and workers in parallel
   await Promise.all([
@@ -56,7 +72,7 @@ function getWorkerName(workerId: string | null): string {
   return worker?.name || ''
 }
 
-// Data for each house
+// Data for each house - hours per task type
 const faseHousesData = computed(() => {
   return faseHouses.value.map(houseNum => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
@@ -79,12 +95,12 @@ const faseHousesData = computed(() => {
 
     return {
       number: houseNum,
-      hours: (totalMin / 60).toFixed(1),
-      hasBinnen: binnenMin > 0,
-      hasBalkon: balkonMin > 0,
-      hasZonnescherm,
-      hasGlasbreuk: glasbreukMin > 0,
-      hasDiversen: diversenMin > 0,
+      totalHours: (totalMin / 60).toFixed(1),
+      binnenHours: binnenMin > 0 ? (binnenMin / 60).toFixed(1) : null,
+      balkonHours: balkonMin > 0 ? (balkonMin / 60).toFixed(1) : null,
+      zonnescherm: hasZonnescherm,
+      glasbreukHours: glasbreukMin > 0 ? (glasbreukMin / 60).toFixed(1) : null,
+      diversenHours: diversenMin > 0 ? (diversenMin / 60).toFixed(1) : null,
       workers: workerNames,
     }
   })
@@ -93,11 +109,11 @@ const faseHousesData = computed(() => {
 // Executive overview stats
 const overviewStats = computed(() => {
   const total = faseHousesData.value.length
-  const binnenCount = faseHousesData.value.filter(h => h.hasBinnen).length
-  const balkonCount = faseHousesData.value.filter(h => h.hasBalkon).length
-  const zonneschermCount = faseHousesData.value.filter(h => h.hasZonnescherm).length
-  const glasbreukCount = faseHousesData.value.filter(h => h.hasGlasbreuk).length
-  const diversenCount = faseHousesData.value.filter(h => h.hasDiversen).length
+  const binnenCount = faseHousesData.value.filter(h => h.binnenHours !== null).length
+  const balkonCount = faseHousesData.value.filter(h => h.balkonHours !== null).length
+  const zonneschermCount = faseHousesData.value.filter(h => h.zonnescherm).length
+  const glasbreukCount = faseHousesData.value.filter(h => h.glasbreukHours !== null).length
+  const diversenCount = faseHousesData.value.filter(h => h.diversenHours !== null).length
 
   const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0
 
@@ -113,7 +129,7 @@ const overviewStats = computed(() => {
 
 // Total hours for fase
 const faseTotalHours = computed(() => {
-  const total = faseHousesData.value.reduce((sum, h) => sum + parseFloat(h.hours), 0)
+  const total = faseHousesData.value.reduce((sum, h) => sum + parseFloat(h.totalHours), 0)
   return total.toFixed(1)
 })
 
@@ -254,22 +270,17 @@ const formattedDate = computed(() => {
       <section class="houses-section">
         <h2>Details per woning</h2>
 
-        <!-- Legend -->
-        <div class="legend">
-          <span class="legend-item"><span class="t">B</span> = Binnen</span>
-          <span class="legend-item"><span class="t">Ba</span> = Balkon</span>
-          <span class="legend-item"><span class="t">Z</span> = Zonnescherm</span>
-          <span class="legend-item"><span class="t warn">G</span> = Glasbreuk</span>
-          <span class="legend-item"><span class="t">D</span> = Diversen</span>
-        </div>
-
-        <!-- Compact table -->
+        <!-- Professional table with hours per task -->
         <table class="houses-table">
           <thead>
             <tr>
               <th class="col-house">Woning</th>
-              <th class="col-hours">Uren</th>
-              <th class="col-tasks">Taken</th>
+              <th class="col-task-hours">Binnen</th>
+              <th class="col-task-hours">Balkon</th>
+              <th class="col-task-hours">Zonnescherm</th>
+              <th class="col-task-hours">Glasbreuk</th>
+              <th class="col-task-hours">Diversen</th>
+              <th class="col-total">Totaal</th>
               <th class="col-workers">Door</th>
             </tr>
           </thead>
@@ -278,28 +289,27 @@ const formattedDate = computed(() => {
               <!-- Data row -->
               <tr class="data-row">
                 <td class="house-num">{{ house.number }}</td>
-                <td class="hours">{{ house.hours }}</td>
-                <td class="tasks">
-                  <span v-if="house.hasBinnen" class="t">B</span>
-                  <span v-if="house.hasBalkon" class="t">Ba</span>
-                  <span v-if="house.hasZonnescherm" class="t">Z</span>
-                  <span v-if="house.hasGlasbreuk" class="t warn">G</span>
-                  <span v-if="house.hasDiversen" class="t">D</span>
-                </td>
+                <td class="task-hours">{{ house.binnenHours || '-' }}</td>
+                <td class="task-hours">{{ house.balkonHours || '-' }}</td>
+                <td class="task-hours">{{ house.zonnescherm ? 'Ja' : '-' }}</td>
+                <td class="task-hours">{{ house.glasbreukHours || '-' }}</td>
+                <td class="task-hours">{{ house.diversenHours || '-' }}</td>
+                <td class="total-hours">{{ house.totalHours }}</td>
                 <td class="workers">{{ house.workers }}</td>
               </tr>
               <!-- Photo row (if photos exist) -->
               <tr v-if="photosByHouse[house.number]?.length" class="photo-row">
-                <td colspan="4">
+                <td colspan="8">
                   <div class="photos-inline">
                     <img
                       v-for="(photo, idx) in photosByHouse[house.number]"
                       :key="photo.id"
                       :src="getPhotoUrl(photo)"
                       :alt="'Foto ' + (idx + 1)"
-                      class="photo-thumb"
+                      class="photo-thumb clickable"
                       @load="onImageLoad"
                       @error="hideImage"
+                      @click="openPhoto(photo)"
                     />
                   </div>
                 </td>
@@ -314,6 +324,26 @@ const formattedDate = computed(() => {
         <p>Breijer Klussen - Fase {{ faseNum }} Rapport - {{ formattedDate }}</p>
       </footer>
     </div>
+
+    <!-- Photo Lightbox -->
+    <Teleport to="body">
+      <div v-if="selectedPhoto" class="photo-lightbox" @click="closePhoto">
+        <button
+          type="button"
+          class="photo-lightbox-close"
+          @click.stop="closePhoto"
+          aria-label="Sluiten"
+        >
+          &times;
+        </button>
+        <img
+          :src="getFullResUrl()"
+          alt="Foto volledig scherm"
+          class="photo-lightbox-img"
+          @click.stop
+        />
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -548,53 +578,13 @@ const formattedDate = computed(() => {
   color: #1e3a5f;
 }
 
-/* Legend */
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Task indicators (compact) */
-.t {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #059669;
-  background: #ecfdf5;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid #a7f3d0;
-  margin-right: 3px;
-}
-
-.t.warn {
-  color: #d97706;
-  background: #fffbeb;
-  border-color: #fde68a;
-}
-
-/* Compact table */
+/* Professional table */
 .houses-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
+  border: 1px solid #d1d5db;
 }
 
 .houses-table thead {
@@ -604,27 +594,51 @@ const formattedDate = computed(() => {
 
 .houses-table th {
   padding: 10px 8px;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  border-right: 1px solid rgba(255,255,255,0.1);
 }
 
-.houses-table .col-house { width: 70px; }
-.houses-table .col-hours { width: 60px; }
-.houses-table .col-tasks { width: 120px; }
-.houses-table .col-workers { }
+.houses-table th:last-child {
+  border-right: none;
+}
+
+.houses-table th.col-house {
+  text-align: left;
+  width: 70px;
+}
+
+.houses-table th.col-task-hours {
+  width: 75px;
+}
+
+.houses-table th.col-total {
+  width: 65px;
+  background: #0f2942;
+}
+
+.houses-table th.col-workers {
+  text-align: left;
+  width: auto;
+}
 
 .houses-table td {
   padding: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
   vertical-align: middle;
+}
+
+.houses-table td:last-child {
+  border-right: none;
 }
 
 .houses-table .data-row:nth-child(4n+1),
 .houses-table .data-row:nth-child(4n+2) {
-  background: #f8fafc;
+  background: #f9fafb;
 }
 
 .houses-table .house-num {
@@ -632,16 +646,20 @@ const formattedDate = computed(() => {
   color: #1e3a5f;
 }
 
-.houses-table .hours {
-  font-weight: 600;
+.houses-table .task-hours {
+  text-align: center;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 12px;
   color: #374151;
 }
 
-.houses-table .tasks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin: 0;
+.houses-table .total-hours {
+  text-align: center;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a5f;
+  background: #f0f7ff;
 }
 
 .houses-table .workers {
@@ -670,6 +688,16 @@ const formattedDate = computed(() => {
   border: 1px solid #e2e8f0;
 }
 
+.photo-thumb.clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.photo-thumb.clickable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
 /* Footer */
 .report-footer {
   text-align: center;
@@ -679,9 +707,55 @@ const formattedDate = computed(() => {
   font-size: 12px;
 }
 
+/* Photo Lightbox */
+.photo-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.photo-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 32px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.photo-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
 /* Print styles */
 @media print {
-  .no-print {
+  .no-print,
+  .photo-lightbox {
     display: none !important;
   }
 
@@ -756,17 +830,14 @@ const formattedDate = computed(() => {
     print-color-adjust: exact;
   }
 
-  .t {
-    font-size: 9px;
-    padding: 1px 4px;
+  .houses-table .total-hours {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .legend {
+  .houses-table .task-hours,
+  .houses-table .total-hours {
     font-size: 10px;
-    padding: 6px 10px;
-    margin-bottom: 8px;
   }
 
   .photo-thumb {
