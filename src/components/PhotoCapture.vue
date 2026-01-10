@@ -12,29 +12,83 @@ const emit = defineEmits<{
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const errorMessage = ref<string | null>(null)
+
+// UUID fallback for older iOS (crypto.randomUUID requires iOS 15.4+)
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
 function openCamera() {
+  errorMessage.value = null
   fileInput.value?.click()
 }
 
-function handleFileSelect(event: Event) {
+// Validate image file and create preview
+async function createPhotoFromFile(file: File): Promise<CapturedPhoto | null> {
+  try {
+    // Check if it's a valid image
+    if (!file.type.startsWith('image/')) {
+      console.warn('Invalid file type:', file.type)
+      return null
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+
+    // Verify the image can be loaded (iOS sometimes returns invalid blobs)
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Image failed to load'))
+      img.src = previewUrl
+    })
+
+    return {
+      id: generateId(),
+      file,
+      previewUrl,
+    }
+  } catch (err) {
+    console.error('Failed to create photo preview:', err)
+    return null
+  }
+}
+
+async function handleFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const files = input.files
 
   if (!files || files.length === 0) return
 
+  errorMessage.value = null
   const newPhotos: CapturedPhoto[] = []
+  let failedCount = 0
 
   for (const file of Array.from(files)) {
-    const photo: CapturedPhoto = {
-      id: crypto.randomUUID(),
-      file,
-      previewUrl: URL.createObjectURL(file),
+    const photo = await createPhotoFromFile(file)
+    if (photo) {
+      newPhotos.push(photo)
+    } else {
+      failedCount++
     }
-    newPhotos.push(photo)
   }
 
-  emit('update:photos', [...props.photos, ...newPhotos])
+  if (newPhotos.length > 0) {
+    emit('update:photos', [...props.photos, ...newPhotos])
+  }
+
+  // Show error if some photos failed
+  if (failedCount > 0) {
+    errorMessage.value = `${failedCount} foto('s) konden niet worden geladen. Probeer opnieuw.`
+  }
 
   // Reset input so same file can be selected again
   input.value = ''
@@ -66,7 +120,6 @@ onUnmounted(() => {
       ref="fileInput"
       type="file"
       accept="image/*"
-      capture="environment"
       multiple
       class="photo-input-hidden"
       @change="handleFileSelect"
@@ -114,6 +167,11 @@ onUnmounted(() => {
     <!-- Photo count -->
     <p v-if="photos.length > 0" class="photo-count">
       {{ photos.length }} foto{{ photos.length === 1 ? '' : "'s" }} geselecteerd
+    </p>
+
+    <!-- Error message -->
+    <p v-if="errorMessage" class="photo-error">
+      {{ errorMessage }}
     </p>
   </div>
 </template>
@@ -223,6 +281,17 @@ onUnmounted(() => {
   margin-top: var(--space-sm);
   font-size: 14px;
   color: var(--color-text-light);
+  text-align: center;
+}
+
+.photo-error {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
   text-align: center;
 }
 </style>

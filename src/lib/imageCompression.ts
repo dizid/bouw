@@ -11,6 +11,7 @@ export interface CompressedImage {
 /**
  * Compress an image for upload
  * Optimized for construction site conditions (poor connectivity)
+ * Falls back to original image if compression fails (iOS compatibility)
  */
 export async function compressImage(
   file: File,
@@ -19,25 +20,51 @@ export async function compressImage(
 ): Promise<CompressedImage> {
   const originalSize = file.size
 
-  const options = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: maxWidth,
-    useWebWorker: true,
-    fileType: 'image/jpeg' as const,
-    initialQuality: quality,
-  }
+  try {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: maxWidth,
+      useWebWorker: true,
+      fileType: 'image/jpeg' as const,
+      initialQuality: quality,
+    }
 
-  const compressedBlob = await imageCompression(file, options)
+    const compressedBlob = await imageCompression(file, options)
 
-  // Get dimensions from compressed image
-  const dimensions = await getImageDimensions(compressedBlob)
+    // Get dimensions from compressed image
+    const dimensions = await getImageDimensions(compressedBlob)
 
-  return {
-    blob: compressedBlob,
-    width: dimensions.width,
-    height: dimensions.height,
-    originalSize,
-    compressedSize: compressedBlob.size,
+    return {
+      blob: compressedBlob,
+      width: dimensions.width,
+      height: dimensions.height,
+      originalSize,
+      compressedSize: compressedBlob.size,
+    }
+  } catch (err) {
+    // Fallback: return original image if compression fails
+    console.warn('Image compression failed, using original:', err)
+
+    try {
+      const dimensions = await getImageDimensions(file)
+      return {
+        blob: file,
+        width: dimensions.width,
+        height: dimensions.height,
+        originalSize,
+        compressedSize: file.size,
+      }
+    } catch {
+      // Last resort: return with default dimensions
+      console.error('Could not get image dimensions, using defaults')
+      return {
+        blob: file,
+        width: 1200,
+        height: 900,
+        originalSize,
+        compressedSize: file.size,
+      }
+    }
   }
 }
 
@@ -66,20 +93,26 @@ function getImageDimensions(blob: Blob): Promise<{ width: number; height: number
 /**
  * Generate a thumbnail version of an image
  * Used for fast loading in fase reports
+ * Falls back to original if thumbnail generation fails
  */
 export async function generateThumbnail(
   file: File | Blob,
   maxWidth: number = 300
 ): Promise<Blob> {
-  const options = {
-    maxSizeMB: 0.1,
-    maxWidthOrHeight: maxWidth,
-    useWebWorker: true,
-    fileType: 'image/jpeg' as const,
-    initialQuality: 0.8,
-  }
+  try {
+    const options = {
+      maxSizeMB: 0.1,
+      maxWidthOrHeight: maxWidth,
+      useWebWorker: true,
+      fileType: 'image/jpeg' as const,
+      initialQuality: 0.8,
+    }
 
-  return await imageCompression(file as File, options)
+    return await imageCompression(file as File, options)
+  } catch (err) {
+    console.warn('Thumbnail generation failed, using original:', err)
+    return file
+  }
 }
 
 /**

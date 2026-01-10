@@ -1,6 +1,6 @@
-// Daily Database Backup - SIMPLE & RELIABLE
-// Exports all tables as JSON, emails download link
-// Images are already safe in Supabase Storage bucket
+// Weekly Database Backup - JSON Only
+// Exports all tables as JSON, uploads ZIP, emails link
+// Runs weekly on Sunday 8 PM Amsterdam time
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { zipSync } from "npm:fflate@0.8.2";
@@ -11,6 +11,8 @@ const BACKUP_EMAIL = "marc@dizid.com";
 const RETENTION_DAYS = 14;
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+
   try {
     // Auth check
     const secret = req.headers.get("x-backup-secret");
@@ -23,19 +25,19 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Export all tables
     const timestamp = new Date().toISOString().split("T")[0];
     const files: Record<string, Uint8Array> = {};
     const stats: Record<string, number> = {};
 
+    // Export all tables as JSON
     for (const table of TABLES) {
       const { data, error } = await supabase.from(table).select("*");
       if (error) throw new Error(`Export ${table} failed: ${error.message}`);
-      files[`${table}.json`] = new TextEncoder().encode(JSON.stringify(data, null, 2));
+      files[`data/${table}.json`] = new TextEncoder().encode(JSON.stringify(data, null, 2));
       stats[table] = data?.length || 0;
     }
 
-    // Create and upload ZIP
+    // Create ZIP
     const zipData = zipSync(files);
     const filename = `bouw-backup-${timestamp}.zip`;
 
@@ -43,7 +45,6 @@ Deno.serve(async (req) => {
       .from("backups")
       .upload(filename, zipData, { contentType: "application/zip", upsert: true });
 
-    // Get download link
     const { data: urlData } = await supabase.storage
       .from("backups")
       .createSignedUrl(filename, 60 * 60 * 24 * 7);
@@ -62,26 +63,31 @@ Deno.serve(async (req) => {
 
     // Send email
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) throw new Error("RESEND_API_KEY not set");
+    if (resendKey) {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Bouw Backup <onboarding@resend.dev>",
+          to: [BACKUP_EMAIL],
+          subject: `Bouw Weekly Backup - ${timestamp}`,
+          text: `Weekly backup ready:\n\n${urlData?.signedUrl}\n\nLink valid 7 days.\n\nTables:\n${TABLES.map(t => `- ${t}: ${stats[t]} rows`).join("\n")}\n\nZIP size: ${(zipData.length / 1024).toFixed(0)}KB`,
+        }),
+      });
+    }
 
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "Bouw Backup <onboarding@resend.dev>",
-        to: [BACKUP_EMAIL],
-        subject: `✅ Bouw Backup - ${timestamp}`,
-        text: `Daily backup ready:\n\n${urlData?.signedUrl}\n\nLink valid 7 days.\n\nTables:\n${TABLES.map(t => `- ${t}: ${stats[t]} rows`).join("\n")}\n\nNote: Images are stored separately in Supabase Storage.`,
-      }),
-    });
+    console.log(`Backup done in ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({
       success: true,
       url: urlData?.signedUrl,
       tables: stats,
+      zip_kb: (zipData.length / 1024).toFixed(0),
+      duration_ms: Date.now() - startTime,
     }), { headers: { "Content-Type": "application/json" } });
 
   } catch (e) {
+    console.error("Backup failed:", e);
     return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
