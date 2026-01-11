@@ -395,8 +395,8 @@ const isLoading = () => {
       {{ uploadingPhotos ? "Foto's uploaden..." : sessionsStore.loading ? 'Opslaan...' : 'Opslaan' }}
     </button>
 
-    <!-- Validation feedback -->
-    <p v-if="submitValidationMessage && !isLoading()" class="text-center mt-sm" style="color: #dc2626; font-size: 16px; font-weight: bold;">
+    <!-- Validation feedback - shows when button is disabled -->
+    <p v-if="!canSubmit() && !isLoading()" class="text-center mt-sm" style="color: #dc2626; font-size: 16px; font-weight: bold;">
       {{ submitValidationMessage }}
     </p>
 
