@@ -4,7 +4,9 @@ import { useWorkersStore } from '@/stores/workers'
 import { useSessionsStore } from '@/stores/sessions'
 import { usePhotosStore } from '@/stores/photos'
 import PhotoGallery from '@/components/PhotoGallery.vue'
-import type { SessionPhoto, Worker } from '@/types'
+import WorkerEditModal from '@/components/WorkerEditModal.vue'
+import SessionEditModal from '@/components/SessionEditModal.vue'
+import type { SessionPhoto, Worker, JobSession, JobSessionInsert } from '@/types'
 
 const workersStore = useWorkersStore()
 const sessionsStore = useSessionsStore()
@@ -21,6 +23,14 @@ const selectedFase = ref(1)
 const selectedWorker = ref<Worker | null>(null)
 const workerPhotos = ref<SessionPhoto[]>([])
 const loadingWorkerPhotos = ref(false)
+
+// Worker edit modal state
+const showWorkerModal = ref(false)
+const editingWorker = ref<Worker | null>(null)
+
+// Session edit modal state
+const showSessionModal = ref(false)
+const editingSession = ref<JobSession | null>(null)
 
 // Search for house by number
 function searchHouse() {
@@ -49,6 +59,62 @@ function getWorkerName(workerId: string | null) {
 function confirmRemoveWorker(worker: { id: string; name: string }) {
   if (confirm(`Weet je zeker dat je ${worker.name} wilt verwijderen?`)) {
     workersStore.removeWorker(worker.id)
+  }
+}
+
+// Worker modal handlers
+function openAddWorker() {
+  editingWorker.value = null
+  showWorkerModal.value = true
+}
+
+function openEditWorker(worker: Worker, event: Event) {
+  event.stopPropagation() // Don't trigger row click
+  editingWorker.value = worker
+  showWorkerModal.value = true
+}
+
+function closeWorkerModal() {
+  showWorkerModal.value = false
+  editingWorker.value = null
+}
+
+async function saveWorker(name: string) {
+  if (editingWorker.value) {
+    // Edit existing
+    await workersStore.updateWorker(editingWorker.value.id, name)
+  } else {
+    // Add new
+    await workersStore.addWorker(name)
+  }
+  closeWorkerModal()
+}
+
+// Session modal handlers
+function openEditSession(session: JobSession, event?: Event) {
+  event?.stopPropagation()
+  editingSession.value = session
+  showSessionModal.value = true
+}
+
+function closeSessionModal() {
+  showSessionModal.value = false
+  editingSession.value = null
+}
+
+async function saveSession(updates: Partial<JobSessionInsert>) {
+  if (editingSession.value) {
+    await sessionsStore.updateSession(editingSession.value.id, updates)
+  }
+  closeSessionModal()
+}
+
+// Delete session with confirmation
+function confirmDeleteSession(session: JobSession, event: Event) {
+  event.stopPropagation()
+  const workerName = getWorkerName(session.worker_id)
+  if (confirm(`Klus van ${workerName} (woning ${session.house_number}) verwijderen?`)) {
+    sessionsStore.deleteSession(session.id)
   }
 }
 
@@ -259,13 +325,31 @@ function getPrintUrl(fase: number) {
           Nog geen klussen geregistreerd
         </div>
         <div v-else>
-          <div v-for="session in selectedWorkerSessions" :key="session.id" class="card mb-sm" style="background: var(--color-bg);">
-            <div class="form-row mb-sm">
-              <strong
-                style="cursor: pointer; text-decoration: underline; color: var(--color-primary);"
-                @click="activeTab = 'woningen'; selectedHouse = session.house_number"
-              >Woning {{ session.house_number }}</strong>
-              <span style="color: var(--color-text-light);">{{ formatDate(session.created_at) }}</span>
+          <div v-for="session in selectedWorkerSessions" :key="session.id" class="card mb-sm session-card">
+            <div class="session-header">
+              <div class="session-info">
+                <strong
+                  style="cursor: pointer; text-decoration: underline; color: var(--color-primary);"
+                  @click="activeTab = 'woningen'; selectedHouse = session.house_number"
+                >Woning {{ session.house_number }}</strong>
+                <span class="session-date">{{ formatDate(session.created_at) }}</span>
+              </div>
+              <div class="session-actions">
+                <button
+                  class="btn-icon btn-edit"
+                  @click="openEditSession(session)"
+                  title="Bewerken"
+                >
+                  ✎
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  @click="confirmDeleteSession(session, $event)"
+                  title="Verwijderen"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div style="font-size: 14px;">
               <div v-if="session.binnen_opruimen_min">
@@ -319,7 +403,16 @@ function getPrintUrl(fase: number) {
 
       <!-- Worker list -->
       <div v-else class="card">
-        <h3 class="mb-md">Medewerkers ({{ workersStore.workers.length }})</h3>
+        <div class="form-row mb-md" style="align-items: center;">
+          <h3>Medewerkers ({{ workersStore.workers.length }})</h3>
+          <button
+            class="btn-icon btn-add"
+            @click="openAddWorker"
+            title="Medewerker toevoegen"
+          >
+            +
+          </button>
+        </div>
         <p class="mb-md text-center" style="color: var(--color-text-light); font-size: 14px;">
           Tik op een medewerker voor details
         </p>
@@ -330,14 +423,29 @@ function getPrintUrl(fase: number) {
           <div
             v-for="worker in workersStore.workers"
             :key="worker.id"
-            class="form-row mb-sm"
-            style="align-items: center; cursor: pointer;"
+            class="worker-row"
             @click="selectWorker(worker)"
           >
-            <span style="flex: 1; font-weight: 600;">{{ worker.name }}</span>
-            <span style="color: var(--color-text-light); font-size: 14px;">
+            <span class="worker-name">{{ worker.name }}</span>
+            <span class="worker-hours">
               {{ sessionsStore.getWorkerStats(worker.id).totalHours }} uur
             </span>
+            <div class="worker-actions">
+              <button
+                class="btn-icon btn-edit"
+                @click="openEditWorker(worker, $event)"
+                title="Bewerken"
+              >
+                ✎
+              </button>
+              <button
+                class="btn-icon btn-delete"
+                @click.stop="confirmRemoveWorker(worker)"
+                title="Verwijderen"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -386,10 +494,28 @@ function getPrintUrl(fase: number) {
         </div>
 
         <div v-else>
-          <div v-for="session in selectedHouseSessions" :key="session.id" class="card" style="background: var(--color-bg);">
-            <div class="form-row mb-sm">
-              <strong>{{ getWorkerName(session.worker_id) }}</strong>
-              <span style="color: var(--color-text-light);">{{ formatDate(session.created_at) }}</span>
+          <div v-for="session in selectedHouseSessions" :key="session.id" class="card session-card">
+            <div class="session-header">
+              <div class="session-info">
+                <strong>{{ getWorkerName(session.worker_id) }}</strong>
+                <span class="session-date">{{ formatDate(session.created_at) }}</span>
+              </div>
+              <div class="session-actions">
+                <button
+                  class="btn-icon btn-edit"
+                  @click="openEditSession(session)"
+                  title="Bewerken"
+                >
+                  ✎
+                </button>
+                <button
+                  class="btn-icon btn-delete"
+                  @click="confirmDeleteSession(session, $event)"
+                  title="Verwijderen"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div style="font-size: 14px;">
               <div v-if="session.binnen_opruimen_min">
@@ -513,5 +639,127 @@ function getPrintUrl(fase: number) {
         </a>
       </div>
     </div>
+
+    <!-- Modals -->
+    <WorkerEditModal
+      :show="showWorkerModal"
+      :worker="editingWorker"
+      @close="closeWorkerModal"
+      @save="saveWorker"
+    />
+
+    <SessionEditModal
+      :show="showSessionModal"
+      :session="editingSession"
+      :worker-name="editingSession ? getWorkerName(editingSession.worker_id) : ''"
+      @close="closeSessionModal"
+      @save="saveSession"
+    />
   </div>
 </template>
+
+<style scoped>
+/* Worker row styles */
+.worker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  min-height: 56px;
+}
+
+.worker-row:last-child {
+  border-bottom: none;
+}
+
+.worker-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.worker-hours {
+  color: var(--color-text-light);
+  font-size: 14px;
+}
+
+.worker-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Session card styles */
+.session-card {
+  background: var(--color-bg);
+  margin-bottom: var(--space-sm);
+}
+
+.session-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-date {
+  color: var(--color-text-light);
+  font-size: 14px;
+}
+
+.session-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Icon button styles */
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-add {
+  background: var(--color-success);
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.btn-add:active {
+  background: var(--color-success-dark);
+}
+
+.btn-edit {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-edit:active {
+  background: var(--color-primary-dark);
+}
+
+.btn-delete {
+  background: var(--color-error);
+  color: white;
+}
+
+.btn-delete:active {
+  opacity: 0.8;
+}
+</style>

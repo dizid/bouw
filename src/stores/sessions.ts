@@ -126,6 +126,35 @@ export const useSessionsStore = defineStore('sessions', () => {
     }
   }
 
+  async function updateSession(id: string, updates: Partial<JobSessionInsert>) {
+    loading.value = true
+    error.value = null
+    try {
+      const { data, error: err } = await supabase
+        .from('job_sessions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (err) throw err
+      if (data) {
+        // Update in local array
+        const idx = sessions.value.findIndex(s => s.id === id)
+        if (idx !== -1) {
+          sessions.value[idx] = data
+        }
+      }
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Fout bij bijwerken'
+      console.error('Error updating session:', e)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Get sessions for a specific house
   function getSessionsForHouse(houseNumber: number) {
     return sessions.value.filter(s => s.house_number === houseNumber)
@@ -188,6 +217,7 @@ export const useSessionsStore = defineStore('sessions', () => {
     fetchSettings,
     fetchSessions,
     createSession,
+    updateSession,
     deleteSession,
     getSessionsForHouse,
     getWorkerStats,

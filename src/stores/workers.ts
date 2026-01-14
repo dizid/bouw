@@ -83,6 +83,44 @@ export const useWorkersStore = defineStore('workers', () => {
     return await addWorker(trimmedName)
   }
 
+  async function updateWorker(id: string, name: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const trimmedName = name.trim()
+      if (!trimmedName) throw new Error('Naam mag niet leeg zijn')
+
+      const { data, error: err } = await supabase
+        .from('workers')
+        .update({ name: trimmedName })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (err) throw err
+      if (data) {
+        // Update in local arrays
+        const idx = workers.value.findIndex(w => w.id === id)
+        if (idx !== -1) {
+          workers.value[idx] = data
+          workers.value.sort((a, b) => a.name.localeCompare(b.name))
+        }
+        const allIdx = allWorkers.value.findIndex(w => w.id === id)
+        if (allIdx !== -1) {
+          allWorkers.value[allIdx] = data
+          allWorkers.value.sort((a, b) => a.name.localeCompare(b.name))
+        }
+      }
+      return data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Fout bij bijwerken medewerker'
+      console.error('Error updating worker:', e)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function removeWorker(id: string) {
     loading.value = true
     error.value = null
@@ -112,6 +150,7 @@ export const useWorkersStore = defineStore('workers', () => {
     fetchAllWorkers,
     addWorker,
     findOrCreateWorker,
+    updateWorker,
     removeWorker,
   }
 })
