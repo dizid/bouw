@@ -623,7 +623,7 @@ function getPrintUrl(fase: number) {
           <label>Selecteer Fase</label>
           <select v-model="selectedFase">
             <option v-for="n in sessionsStore.totalFases" :key="n" :value="n">
-              Fase {{ n }} ({{ n === sessionsStore.totalFases ? 'lopend' : 'compleet' }})
+              Fase {{ n }}
             </option>
           </select>
         </div>

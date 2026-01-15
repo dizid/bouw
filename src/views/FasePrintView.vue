@@ -213,7 +213,7 @@ const formattedDate = computed(() => {
             Afdrukken / Opslaan als PDF
           </template>
         </button>
-        <p v-if="!imagesLoading || totalImages === 0" class="hint">Tip: Kies "Opslaan als PDF" in het print dialoog</p>
+        <p v-if="!imagesLoading || totalImages === 0" class="hint">Tip: Kies "Opslaan als PDF" en zet "Kop- en voetteksten" uit</p>
       </div>
 
       <!-- Header bar -->
