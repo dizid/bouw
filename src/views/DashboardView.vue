@@ -45,6 +45,7 @@ onMounted(async () => {
     workersStore.fetchAllWorkers(),
     sessionsStore.fetchSessions(),
     sessionsStore.fetchSettings(),
+    sessionsStore.fetchPhaseHouses(),
   ])
 })
 

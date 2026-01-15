@@ -58,7 +58,7 @@ function handleWorkerBlur() {
 // Task states (binnenOpruimen, buitenBalkon, diversen have photos)
 const binnenOpruimen = ref({ checked: false, minutes: null as number | null, opmerkingen: '', photos: [] as CapturedPhoto[] })
 const buitenBalkon = ref({ checked: false, minutes: null as number | null, opmerkingen: '', photos: [] as CapturedPhoto[] })
-const zonnescherm = ref({ checked: false, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
+const zonnescherm = ref({ checked: false, minutes: null as number | null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '', photos: [] as CapturedPhoto[] })
 const glasbreuk = ref({ checked: false, minutes: null as number | null, aantal: null as number | null, opmerkingen: '', photos: [] as CapturedPhoto[] })
 const diversen = ref({ checked: false, minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '', photos: [] as CapturedPhoto[] })
 
@@ -92,12 +92,13 @@ function resetForm() {
   // Revoke photo URLs before clearing
   binnenOpruimen.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
   buitenBalkon.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
+  zonnescherm.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
   glasbreuk.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
   diversen.value.photos.forEach(p => URL.revokeObjectURL(p.previewUrl))
   // Reset all task states
   binnenOpruimen.value = { checked: false, minutes: null, opmerkingen: '', photos: [] }
   buitenBalkon.value = { checked: false, minutes: null, opmerkingen: '', photos: [] }
-  zonnescherm.value = { checked: false, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' }
+  zonnescherm.value = { checked: false, minutes: null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '', photos: [] }
   glasbreuk.value = { checked: false, minutes: null, aantal: null, opmerkingen: '', photos: [] }
   diversen.value = { checked: false, minutes: null, naam: '', telefoon: '', opmerkingen: '', photos: [] }
 }
@@ -116,7 +117,7 @@ async function handleSubmit() {
     binnen_opruimen_opmerkingen: binnenOpruimen.value.checked ? binnenOpruimen.value.opmerkingen || null : null,
     buiten_balkon_min: buitenBalkon.value.checked ? buitenBalkon.value.minutes : null,
     buiten_balkon_opmerkingen: buitenBalkon.value.checked ? buitenBalkon.value.opmerkingen || null : null,
-    zonnescherm_verwijderd_min: null,
+    zonnescherm_verwijderd_min: zonnescherm.value.checked ? zonnescherm.value.minutes : null,
     zonnescherm_terugplaatsen: zonnescherm.value.checked ? zonnescherm.value.terugplaatsen : null,
     zonnescherm_afstandverklaring: zonnescherm.value.checked && zonnescherm.value.terugplaatsen ? zonnescherm.value.afstandverklaring : null,
     zonnescherm_opmerkingen: zonnescherm.value.checked ? zonnescherm.value.opmerkingen || null : null,
@@ -134,6 +135,7 @@ async function handleSubmit() {
     // Upload photos per job type
     const hasPhotos = binnenOpruimen.value.photos.length > 0 ||
                       buitenBalkon.value.photos.length > 0 ||
+                      zonnescherm.value.photos.length > 0 ||
                       glasbreuk.value.photos.length > 0 ||
                       diversen.value.photos.length > 0
     if (hasPhotos) {
@@ -145,6 +147,9 @@ async function handleSubmit() {
         }
         if (buitenBalkon.value.photos.length > 0) {
           await photosStore.uploadPhotos(result.id, buitenBalkon.value.photos, 'buiten_balkon')
+        }
+        if (zonnescherm.value.photos.length > 0) {
+          await photosStore.uploadPhotos(result.id, zonnescherm.value.photos, 'zonnescherm')
         }
         if (glasbreuk.value.photos.length > 0) {
           await photosStore.uploadPhotos(result.id, glasbreuk.value.photos, 'glasbreuk')
@@ -177,6 +182,7 @@ const canSubmit = () => {
   // Check that selected tasks have minutes filled in
   if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return false
   if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return false
+  if (zonnescherm.value.checked && !zonnescherm.value.minutes) return false
   if (glasbreuk.value.checked && !glasbreuk.value.minutes) return false
   if (diversen.value.checked && !diversen.value.minutes) return false
   return true
@@ -190,6 +196,7 @@ const submitValidationMessage = computed(() => {
   if (!houseNumber.value || houseNumber.value <= 0) return 'Vul huisnummer in'
   if (binnenOpruimen.value.checked && !binnenOpruimen.value.minutes) return 'Vul minuten in voor Binnen opruimen'
   if (buitenBalkon.value.checked && !buitenBalkon.value.minutes) return 'Vul minuten in voor Buiten balkon'
+  if (zonnescherm.value.checked && !zonnescherm.value.minutes) return 'Vul minuten in voor Zonnescherm'
   if (glasbreuk.value.checked && !glasbreuk.value.minutes) return 'Vul minuten in voor Glasbreuk'
   if (diversen.value.checked && !diversen.value.minutes) return 'Vul minuten in voor Diversen'
   return null
@@ -317,6 +324,10 @@ const isLoading = () => {
         <span class="task-title">Zonnescherm verwijderen</span>
       </div>
       <div v-if="zonnescherm.checked" class="task-fields">
+        <div class="inline-field">
+          <label>Minuten:</label>
+          <input type="number" v-model="zonnescherm.minutes" min="0" inputmode="numeric" />
+        </div>
         <div class="sub-checkbox" @click="zonnescherm.terugplaatsen = !zonnescherm.terugplaatsen">
           <div class="task-checkbox" :class="{ checked: zonnescherm.terugplaatsen }"></div>
           <span>Terugplaatsen?</span>
@@ -328,6 +339,10 @@ const isLoading = () => {
         <div>
           <label>Opmerkingen</label>
           <textarea v-model="zonnescherm.opmerkingen" rows="2"></textarea>
+        </div>
+        <div class="task-photos">
+          <label>Foto</label>
+          <PhotoCapture v-model:photos="zonnescherm.photos" :disabled="isLoading()" />
         </div>
       </div>
     </div>

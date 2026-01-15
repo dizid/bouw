@@ -162,6 +162,21 @@ export type Database = {
         }
         Relationships: []
       }
+      phase_houses: {
+        Row: {
+          phase_number: number
+          house_number: number
+        }
+        Insert: {
+          phase_number: number
+          house_number: number
+        }
+        Update: {
+          phase_number?: number
+          house_number?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -185,6 +200,7 @@ export type JobSession = Database['public']['Tables']['job_sessions']['Row']
 export type JobSessionInsert = Database['public']['Tables']['job_sessions']['Insert']
 export type SessionPhoto = Database['public']['Tables']['session_photos']['Row']
 export type SessionPhotoInsert = Database['public']['Tables']['session_photos']['Insert']
+export type PhaseHouse = Database['public']['Tables']['phase_houses']['Row']
 
 // Local photo type for capture workflow (before upload)
 export interface CapturedPhoto {

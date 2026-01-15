@@ -16,7 +16,7 @@ const emit = defineEmits<{
 // Form state for each task type
 const binnenOpruimen = ref({ minutes: null as number | null, opmerkingen: '' })
 const buitenBalkon = ref({ minutes: null as number | null, opmerkingen: '' })
-const zonnescherm = ref({ terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
+const zonnescherm = ref({ minutes: null as number | null, terugplaatsen: false, afstandverklaring: false, opmerkingen: '' })
 const glasbreuk = ref({ minutes: null as number | null, aantal: null as number | null, opmerkingen: '' })
 const diversen = ref({ minutes: null as number | null, naam: '', telefoon: '', opmerkingen: '' })
 
@@ -35,6 +35,7 @@ watch(() => [props.show, props.session], () => {
       opmerkingen: s.buiten_balkon_opmerkingen || '',
     }
     zonnescherm.value = {
+      minutes: s.zonnescherm_verwijderd_min,
       terugplaatsen: s.zonnescherm_terugplaatsen || false,
       afstandverklaring: s.zonnescherm_afstandverklaring || false,
       opmerkingen: s.zonnescherm_opmerkingen || '',
@@ -72,7 +73,7 @@ function hasData(section: string): boolean {
     case 'balkon':
       return buitenBalkon.value.minutes !== null || !!buitenBalkon.value.opmerkingen
     case 'zonnescherm':
-      return zonnescherm.value.terugplaatsen || zonnescherm.value.afstandverklaring || !!zonnescherm.value.opmerkingen
+      return !!zonnescherm.value.minutes || zonnescherm.value.terugplaatsen || zonnescherm.value.afstandverklaring || !!zonnescherm.value.opmerkingen
     case 'glasbreuk':
       return glasbreuk.value.minutes !== null || glasbreuk.value.aantal !== null || !!glasbreuk.value.opmerkingen
     case 'diversen':
@@ -100,6 +101,7 @@ const canSave = computed(() => {
          buitenBalkon.value.minutes !== null ||
          glasbreuk.value.minutes !== null ||
          diversen.value.minutes !== null ||
+         !!zonnescherm.value.minutes ||
          zonnescherm.value.terugplaatsen ||
          zonnescherm.value.afstandverklaring ||
          !!zonnescherm.value.opmerkingen
@@ -114,6 +116,7 @@ async function handleSave() {
     binnen_opruimen_opmerkingen: binnenOpruimen.value.opmerkingen || null,
     buiten_balkon_min: buitenBalkon.value.minutes,
     buiten_balkon_opmerkingen: buitenBalkon.value.opmerkingen || null,
+    zonnescherm_verwijderd_min: zonnescherm.value.minutes,
     zonnescherm_terugplaatsen: zonnescherm.value.terugplaatsen || null,
     zonnescherm_afstandverklaring: zonnescherm.value.afstandverklaring || null,
     zonnescherm_opmerkingen: zonnescherm.value.opmerkingen || null,
@@ -210,6 +213,10 @@ function handleKeydown(e: KeyboardEvent) {
               <span class="section-toggle">{{ expandedSections.has('zonnescherm') ? '−' : '+' }}</span>
             </div>
             <div v-if="expandedSections.has('zonnescherm')" class="section-content">
+              <div class="inline-field">
+                <label>Minuten:</label>
+                <input type="number" v-model="zonnescherm.minutes" min="0" inputmode="numeric" />
+              </div>
               <div class="checkbox-row" @click="zonnescherm.terugplaatsen = !zonnescherm.terugplaatsen">
                 <div class="task-checkbox" :class="{ checked: zonnescherm.terugplaatsen }"></div>
                 <span>Terugplaatsen?</span>

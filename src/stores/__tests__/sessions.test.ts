@@ -191,90 +191,21 @@ describe('sessionsStore', () => {
     })
   })
 
-  describe('housesInCompletionOrder computed', () => {
-    it('orders houses by first session date', () => {
-      const store = useSessionsStore()
-      store.sessions = [
-        createSession({ house_number: 2, created_at: '2024-01-02T10:00:00Z' }),
-        createSession({ house_number: 1, created_at: '2024-01-01T10:00:00Z' }),
-        createSession({ house_number: 3, created_at: '2024-01-03T10:00:00Z' }),
-      ]
-
-      expect(store.housesInCompletionOrder).toEqual([1, 2, 3])
-    })
-
-    it('uses earliest date when house has multiple sessions', () => {
-      const store = useSessionsStore()
-      store.sessions = [
-        createSession({ house_number: 2, created_at: '2024-01-05T10:00:00Z' }),
-        createSession({ house_number: 1, created_at: '2024-01-03T10:00:00Z' }),
-        createSession({ house_number: 2, created_at: '2024-01-01T10:00:00Z' }), // earlier
-      ]
-
-      // House 2 first (earliest session 01-01), then house 1 (01-03)
-      expect(store.housesInCompletionOrder).toEqual([2, 1])
-    })
-  })
-
   describe('getHousesInFase', () => {
-    it('returns correct slice of houses', () => {
+    it('returns empty array when phase data not loaded', () => {
       const store = useSessionsStore()
-      // Create 75 houses (fase 1: 1-50, fase 2: 51-75)
-      store.sessions = Array.from({ length: 75 }, (_, i) =>
-        createSession({
-          house_number: i + 1,
-          created_at: new Date(2024, 0, i + 1).toISOString(),
-        })
-      )
-
-      const fase1 = store.getHousesInFase(1)
-      const fase2 = store.getHousesInFase(2)
-
-      expect(fase1).toHaveLength(50)
-      expect(fase2).toHaveLength(25)
-      expect(fase1[0]).toBe(1)
-      expect(fase1[49]).toBe(50)
-      expect(fase2[0]).toBe(51)
-    })
-
-    it('returns empty for non-existent fase', () => {
-      const store = useSessionsStore()
-      store.sessions = [createSession({ house_number: 1 })]
-
-      expect(store.getHousesInFase(99)).toHaveLength(0)
+      // Phase data is loaded from database via fetchPhaseHouses
+      // Before loading, getHousesInFase returns empty array
+      expect(store.getHousesInFase(1)).toEqual([])
+      expect(store.getHousesInFase(99)).toEqual([])
     })
   })
 
   describe('totalFases computed', () => {
-    it('calculates correct number of fases', () => {
+    it('returns fixed value of 6 phases', () => {
       const store = useSessionsStore()
-
-      // 0 houses = 1 fase (minimum)
-      expect(store.totalFases).toBe(1)
-
-      // 50 houses = 1 fase
-      store.sessions = Array.from({ length: 50 }, (_, i) =>
-        createSession({ house_number: i + 1, created_at: new Date(2024, 0, i + 1).toISOString() })
-      )
-      expect(store.totalFases).toBe(1)
-
-      // 51 houses = 2 fases
-      store.sessions.push(
-        createSession({ house_number: 51, created_at: new Date(2024, 1, 1).toISOString() })
-      )
-      expect(store.totalFases).toBe(2)
-
-      // 100 houses = 2 fases
-      store.sessions = Array.from({ length: 100 }, (_, i) =>
-        createSession({ house_number: i + 1, created_at: new Date(2024, 0, i + 1).toISOString() })
-      )
-      expect(store.totalFases).toBe(2)
-
-      // 101 houses = 3 fases
-      store.sessions.push(
-        createSession({ house_number: 101, created_at: new Date(2024, 3, 1).toISOString() })
-      )
-      expect(store.totalFases).toBe(3)
+      // totalFases is now a fixed value based on project phases (1-6)
+      expect(store.totalFases).toBe(6)
     })
   })
 })

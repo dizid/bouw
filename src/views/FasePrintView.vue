@@ -37,9 +37,10 @@ function getFullResUrl(): string {
 }
 
 onMounted(async () => {
-  // Fetch sessions and workers in parallel
+  // Fetch sessions, workers, and phase mappings in parallel
   await Promise.all([
     sessionsStore.fetchSessions(),
+    sessionsStore.fetchPhaseHouses(),
     workersStore.fetchAllWorkers()
   ])
 
@@ -72,6 +73,14 @@ function getWorkerName(workerId: string | null): string {
   return worker?.name || ''
 }
 
+// Helper: collect non-empty remarks from sessions and join them
+function collectRemarks(sessions: typeof sessionsStore.sessions, field: keyof typeof sessions[0]): string | null {
+  const remarks = sessions
+    .map(s => s[field])
+    .filter((r): r is string => !!r && typeof r === 'string' && r.trim() !== '')
+  return remarks.length > 0 ? remarks.join(' | ') : null
+}
+
 // Data for each house - hours per task type
 const faseHousesData = computed(() => {
   return faseHouses.value.map(houseNum => {
@@ -93,6 +102,16 @@ const faseHousesData = computed(() => {
       .filter(name => name)
       .join(', ')
 
+    // Collect remarks from all sessions for this house
+    const remarks = {
+      binnen: collectRemarks(houseSessions, 'binnen_opruimen_opmerkingen'),
+      balkon: collectRemarks(houseSessions, 'buiten_balkon_opmerkingen'),
+      zonnescherm: collectRemarks(houseSessions, 'zonnescherm_opmerkingen'),
+      glasbreuk: collectRemarks(houseSessions, 'glasbreuk_opmerkingen'),
+      diversen: collectRemarks(houseSessions, 'diversen_opmerkingen'),
+    }
+    const hasRemarks = Object.values(remarks).some(r => r !== null)
+
     return {
       number: houseNum,
       totalHours: (totalMin / 60).toFixed(1),
@@ -102,6 +121,8 @@ const faseHousesData = computed(() => {
       glasbreukHours: glasbreukMin > 0 ? (glasbreukMin / 60).toFixed(1) : null,
       diversenHours: diversenMin > 0 ? (diversenMin / 60).toFixed(1) : null,
       workers: workerNames,
+      remarks,
+      hasRemarks,
     }
   })
 })
@@ -197,7 +218,13 @@ const formattedDate = computed(() => {
 
       <!-- Header bar -->
       <header class="header-bar">
-        <img src="/breijer_logo.png" alt="Breijer" class="logo" />
+        <div class="header-left">
+          <img src="/breijer_logo.png" alt="Breijer" class="logo" />
+          <div class="project-info">
+            <span class="project-name">Complex "De Hoeksteen"</span>
+            <span class="project-number">Werknummer: 2500714</span>
+          </div>
+        </div>
         <span class="date">{{ formattedDate }}</span>
       </header>
 
@@ -311,6 +338,28 @@ const formattedDate = computed(() => {
                       @error="hideImage"
                       @click="openPhoto(photo)"
                     />
+                  </div>
+                </td>
+              </tr>
+              <!-- Remarks row (if remarks exist) -->
+              <tr v-if="house.hasRemarks" class="remarks-row">
+                <td colspan="8">
+                  <div class="remarks-content">
+                    <span v-if="house.remarks.binnen" class="remark-item">
+                      <strong>Binnen:</strong> {{ house.remarks.binnen }}
+                    </span>
+                    <span v-if="house.remarks.balkon" class="remark-item">
+                      <strong>Balkon:</strong> {{ house.remarks.balkon }}
+                    </span>
+                    <span v-if="house.remarks.zonnescherm" class="remark-item">
+                      <strong>Zonnescherm:</strong> {{ house.remarks.zonnescherm }}
+                    </span>
+                    <span v-if="house.remarks.glasbreuk" class="remark-item">
+                      <strong>Glasbreuk:</strong> {{ house.remarks.glasbreuk }}
+                    </span>
+                    <span v-if="house.remarks.diversen" class="remark-item">
+                      <strong>Diversen:</strong> {{ house.remarks.diversen }}
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -442,9 +491,32 @@ const formattedDate = computed(() => {
   margin-bottom: 24px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .logo {
   height: 36px;
   width: auto;
+}
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a5f;
+}
+
+.project-number {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .date {
@@ -698,6 +770,30 @@ const formattedDate = computed(() => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
+/* Remarks row */
+.remarks-row td {
+  padding: 6px 8px;
+  background: #fffbeb;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.remarks-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.remark-item {
+  color: #374151;
+}
+
+.remark-item strong {
+  color: #1e3a5f;
+  font-weight: 600;
+}
+
 /* Footer */
 .report-footer {
   text-align: center;
@@ -848,6 +944,16 @@ const formattedDate = computed(() => {
 
   .photos-inline {
     gap: 3px;
+  }
+
+  .remarks-row td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .remarks-content {
+    font-size: 10px;
+    gap: 8px;
   }
 
   .report-footer {

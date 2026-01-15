@@ -9,6 +9,9 @@ export const useSessionsStore = defineStore('sessions', () => {
   const error = ref<string | null>(null)
   const maxHouses = ref(200)
 
+  // Phase-to-houses mapping from database
+  const phaseHouses = ref<Map<number, number[]>>(new Map())
+
   // Computed: sessions grouped by house number
   const sessionsByHouse = computed(() => {
     const grouped: Record<number, JobSession[]> = {}
@@ -59,6 +62,30 @@ export const useSessionsStore = defineStore('sessions', () => {
       }
     } catch (e) {
       console.error('Error fetching settings:', e)
+    }
+  }
+
+  // Fetch phase-house mappings from database
+  async function fetchPhaseHouses() {
+    try {
+      const { data, error: err } = await supabase
+        .from('phase_houses')
+        .select('*')
+        .order('house_number')
+
+      if (err) throw err
+
+      // Group houses by phase number
+      const grouped = new Map<number, number[]>()
+      for (let i = 1; i <= 6; i++) {
+        grouped.set(i, [])
+      }
+      for (const row of data || []) {
+        grouped.get(row.phase_number)?.push(row.house_number)
+      }
+      phaseHouses.value = grouped
+    } catch (e) {
+      console.error('Error fetching phase houses:', e)
     }
   }
 
@@ -179,30 +206,13 @@ export const useSessionsStore = defineStore('sessions', () => {
     }
   }
 
-  // Fases: houses ordered by first completion date
-  const housesInCompletionOrder = computed(() => {
-    const houseFirstDate = new Map<number, string>()
-    for (const s of sessions.value) {
-      const existing = houseFirstDate.get(s.house_number)
-      if (!existing || (s.created_at && s.created_at < existing)) {
-        houseFirstDate.set(s.house_number, s.created_at || '')
-      }
-    }
-    return [...houseFirstDate.entries()]
-      .sort((a, b) => a[1].localeCompare(b[1]))
-      .map(([num]) => num)
-  })
-
-  // Get houses in a specific fase (1-indexed, 50 houses per fase)
-  function getHousesInFase(faseNum: number) {
-    const start = (faseNum - 1) * 50
-    return housesInCompletionOrder.value.slice(start, start + 50)
+  // Get houses in a specific fase from database mapping
+  function getHousesInFase(faseNum: number): number[] {
+    return phaseHouses.value.get(faseNum) || []
   }
 
-  // Total number of fases
-  const totalFases = computed(() =>
-    Math.ceil(housesInCompletionOrder.value.length / 50) || 1
-  )
+  // Total number of fases (fixed at 6 based on project phases)
+  const totalFases = computed(() => 6)
 
   return {
     sessions,
@@ -212,10 +222,10 @@ export const useSessionsStore = defineStore('sessions', () => {
     sessionsByHouse,
     housesWithSessions,
     stats,
-    housesInCompletionOrder,
     totalFases,
     fetchSettings,
     fetchSessions,
+    fetchPhaseHouses,
     createSession,
     updateSession,
     deleteSession,
