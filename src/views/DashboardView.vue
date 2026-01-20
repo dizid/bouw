@@ -12,6 +12,34 @@ const workersStore = useWorkersStore()
 const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
+// Dashboard password protection
+const DASHBOARD_PASSWORD = '1966'
+const AUTH_EXPIRY_DAYS = 90
+
+function checkAuth(): boolean {
+  const expiry = localStorage.getItem('dashboardAuthExpiry')
+  if (expiry && Date.now() < parseInt(expiry)) {
+    return true
+  }
+  localStorage.removeItem('dashboardAuthExpiry')
+  return false
+}
+
+const isAuthenticated = ref(checkAuth())
+const passwordInput = ref('')
+const passwordError = ref('')
+
+function verifyPassword() {
+  if (passwordInput.value === DASHBOARD_PASSWORD) {
+    isAuthenticated.value = true
+    const expiry = Date.now() + (AUTH_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+    localStorage.setItem('dashboardAuthExpiry', expiry.toString())
+    passwordError.value = ''
+  } else {
+    passwordError.value = 'Wachtwoord incorrect'
+  }
+}
+
 const activeTab = ref<'medewerkers' | 'woningen' | 'fases'>('medewerkers')
 const selectedHouse = ref<number | null>(null)
 const searchHouseNumber = ref<number | null>(null)
@@ -253,7 +281,26 @@ function getPrintUrl(fase: number) {
 </script>
 
 <template>
-  <div class="page">
+  <!-- Password protection -->
+  <div v-if="!isAuthenticated" class="auth-overlay">
+    <div class="auth-modal">
+      <h2>Dashboard</h2>
+      <p>Voer wachtwoord in om door te gaan</p>
+      <input
+        v-model="passwordInput"
+        type="password"
+        inputmode="numeric"
+        placeholder="Wachtwoord"
+        class="auth-input"
+        @keyup.enter="verifyPassword"
+      />
+      <p v-if="passwordError" class="auth-error">{{ passwordError }}</p>
+      <button class="auth-btn" @click="verifyPassword">Doorgaan</button>
+    </div>
+  </div>
+
+  <!-- Dashboard content -->
+  <div v-else class="page">
     <div class="page-header">
       <h1>Dashboard</h1>
     </div>
@@ -762,5 +809,77 @@ function getPrintUrl(fase: number) {
 
 .btn-delete:active {
   opacity: 0.8;
+}
+
+/* Auth overlay */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.auth-modal {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  text-align: center;
+  width: 90%;
+  max-width: 320px;
+}
+
+.auth-modal h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: var(--color-primary);
+}
+
+.auth-modal p {
+  margin: 0 0 20px;
+  color: var(--color-text-light);
+  font-size: 14px;
+}
+
+.auth-input {
+  width: 100%;
+  height: 56px;
+  padding: 0 16px;
+  font-size: 18px;
+  text-align: center;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.auth-error {
+  color: var(--color-error) !important;
+  font-weight: 500;
+  margin-bottom: 12px !important;
+}
+
+.auth-btn {
+  width: 100%;
+  height: 56px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-btn:active {
+  background: var(--color-primary-dark);
 }
 </style>
