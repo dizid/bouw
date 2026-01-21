@@ -13,7 +13,7 @@ const sessionsStore = useSessionsStore()
 const photosStore = usePhotosStore()
 
 // Dashboard password protection
-const DASHBOARD_PASSWORD = '1966'
+const DASHBOARD_PASSWORD = '1111'
 const AUTH_EXPIRY_DAYS = 90
 
 function checkAuth(): boolean {
