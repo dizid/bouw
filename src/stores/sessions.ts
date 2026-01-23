@@ -7,7 +7,6 @@ export const useSessionsStore = defineStore('sessions', () => {
   const sessions = ref<JobSession[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const maxHouses = ref(200)
 
   // Phase-to-houses mapping from database
   const phaseHouses = ref<Map<number, number[]>>(new Map())
@@ -36,6 +35,7 @@ export const useSessionsStore = defineStore('sessions', () => {
       return sum +
         (s.binnen_opruimen_min || 0) +
         (s.buiten_balkon_min || 0) +
+        (s.zonnescherm_verwijderd_min || 0) +
         (s.glasbreuk_min || 0) +
         (s.diversen_min || 0)
     }, 0)
@@ -47,23 +47,6 @@ export const useSessionsStore = defineStore('sessions', () => {
       totalHours: Math.round(totalMinutes / 60 * 10) / 10,
     }
   })
-
-  async function fetchSettings() {
-    try {
-      const { data, error: err } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'max_houses')
-        .single()
-
-      if (err) throw err
-      if (data) {
-        maxHouses.value = parseInt(data.value) || 200
-      }
-    } catch (e) {
-      console.error('Error fetching settings:', e)
-    }
-  }
 
   // Fetch phase-house mappings from database
   async function fetchPhaseHouses() {
@@ -194,6 +177,7 @@ export const useSessionsStore = defineStore('sessions', () => {
       return sum +
         (s.binnen_opruimen_min || 0) +
         (s.buiten_balkon_min || 0) +
+        (s.zonnescherm_verwijderd_min || 0) +
         (s.glasbreuk_min || 0) +
         (s.diversen_min || 0)
     }, 0)
@@ -218,12 +202,10 @@ export const useSessionsStore = defineStore('sessions', () => {
     sessions,
     loading,
     error,
-    maxHouses,
     sessionsByHouse,
     housesWithSessions,
     stats,
     totalFases,
-    fetchSettings,
     fetchSessions,
     fetchPhaseHouses,
     createSession,

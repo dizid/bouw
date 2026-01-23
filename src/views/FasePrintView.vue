@@ -87,10 +87,17 @@ const faseHousesData = computed(() => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
+    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
-    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
+    const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
+
+    // Glasbreuk count (total panes)
+    const glasbreukAantal = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_aantal || 0), 0)
+
+    // Zonnescherm details
+    const zonneschermTerugplaatsen = houseSessions.some(s => s.zonnescherm_terugplaatsen === true)
+    const zonneschermAfstandverklaring = houseSessions.some(s => s.zonnescherm_afstandverklaring === true)
 
     // Collect unique worker names for this house
     const workerIds = new Set<string>()
@@ -102,6 +109,14 @@ const faseHousesData = computed(() => {
       .filter(name => name)
       .join(', ')
 
+    // Collect unique work dates for this house (formatted in Dutch)
+    const workDates = [...new Set(
+      houseSessions
+        .map(s => s.created_at)
+        .filter((d): d is string => !!d)
+        .map(d => new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }))
+    )]
+
     // Collect remarks from all sessions for this house
     const remarks = {
       binnen: collectRemarks(houseSessions, 'binnen_opruimen_opmerkingen'),
@@ -110,15 +125,19 @@ const faseHousesData = computed(() => {
       glasbreuk: collectRemarks(houseSessions, 'glasbreuk_opmerkingen'),
       diversen: collectRemarks(houseSessions, 'diversen_opmerkingen'),
     }
-    const hasRemarks = Object.values(remarks).some(r => r !== null)
+    const hasRemarks = Object.values(remarks).some(r => r !== null) || zonneschermTerugplaatsen || zonneschermAfstandverklaring
 
     return {
       number: houseNum,
+      dates: workDates.join(', '),
       totalHours: (totalMin / 60).toFixed(1),
       binnenHours: binnenMin > 0 ? (binnenMin / 60).toFixed(1) : null,
       balkonHours: balkonMin > 0 ? (balkonMin / 60).toFixed(1) : null,
-      zonnescherm: hasZonnescherm,
+      zonneschermHours: zonneschermMin > 0 ? (zonneschermMin / 60).toFixed(1) : null,
+      zonneschermTerugplaatsen,
+      zonneschermAfstandverklaring,
       glasbreukHours: glasbreukMin > 0 ? (glasbreukMin / 60).toFixed(1) : null,
+      glasbreukAantal: glasbreukAantal > 0 ? glasbreukAantal : null,
       diversenHours: diversenMin > 0 ? (diversenMin / 60).toFixed(1) : null,
       workers: workerNames,
       remarks,
@@ -132,7 +151,7 @@ const overviewStats = computed(() => {
   const total = faseHousesData.value.length
   const binnenCount = faseHousesData.value.filter(h => h.binnenHours !== null).length
   const balkonCount = faseHousesData.value.filter(h => h.balkonHours !== null).length
-  const zonneschermCount = faseHousesData.value.filter(h => h.zonnescherm).length
+  const zonneschermCount = faseHousesData.value.filter(h => h.zonneschermHours !== null).length
   const glasbreukCount = faseHousesData.value.filter(h => h.glasbreukHours !== null).length
   const diversenCount = faseHousesData.value.filter(h => h.diversenHours !== null).length
 
@@ -302,6 +321,7 @@ const formattedDate = computed(() => {
           <thead>
             <tr>
               <th class="col-house">Woning</th>
+              <th class="col-dates">Datum</th>
               <th class="col-task-hours">Binnen</th>
               <th class="col-task-hours">Balkon</th>
               <th class="col-task-hours">Zonnescherm</th>
@@ -316,17 +336,23 @@ const formattedDate = computed(() => {
               <!-- Data row -->
               <tr class="data-row">
                 <td class="house-num">{{ house.number }}</td>
+                <td class="dates">{{ house.dates || '-' }}</td>
                 <td class="task-hours">{{ house.binnenHours || '-' }}</td>
                 <td class="task-hours">{{ house.balkonHours || '-' }}</td>
-                <td class="task-hours">{{ house.zonnescherm ? 'Ja' : '-' }}</td>
-                <td class="task-hours">{{ house.glasbreukHours || '-' }}</td>
+                <td class="task-hours">{{ house.zonneschermHours || '-' }}</td>
+                <td class="task-hours">
+                  <template v-if="house.glasbreukHours">
+                    {{ house.glasbreukHours }}<span v-if="house.glasbreukAantal" class="count-badge">({{ house.glasbreukAantal }}x)</span>
+                  </template>
+                  <template v-else>-</template>
+                </td>
                 <td class="task-hours">{{ house.diversenHours || '-' }}</td>
                 <td class="total-hours">{{ house.totalHours }}</td>
                 <td class="workers">{{ house.workers }}</td>
               </tr>
               <!-- Photo row (if photos exist) -->
               <tr v-if="photosByHouse[house.number]?.length" class="photo-row">
-                <td colspan="8">
+                <td colspan="9">
                   <div class="photos-inline">
                     <img
                       v-for="(photo, idx) in photosByHouse[house.number]"
@@ -343,7 +369,7 @@ const formattedDate = computed(() => {
               </tr>
               <!-- Remarks row (if remarks exist) -->
               <tr v-if="house.hasRemarks" class="remarks-row">
-                <td colspan="8">
+                <td colspan="9">
                   <div class="remarks-content">
                     <span v-if="house.remarks.binnen" class="remark-item">
                       <strong>Binnen:</strong> {{ house.remarks.binnen }}
@@ -351,8 +377,11 @@ const formattedDate = computed(() => {
                     <span v-if="house.remarks.balkon" class="remark-item">
                       <strong>Balkon:</strong> {{ house.remarks.balkon }}
                     </span>
-                    <span v-if="house.remarks.zonnescherm" class="remark-item">
-                      <strong>Zonnescherm:</strong> {{ house.remarks.zonnescherm }}
+                    <span v-if="house.zonneschermTerugplaatsen || house.zonneschermAfstandverklaring || house.remarks.zonnescherm" class="remark-item">
+                      <strong>Zonnescherm:</strong>
+                      <template v-if="house.zonneschermTerugplaatsen"> Teruggeplaatst</template>
+                      <template v-if="house.zonneschermAfstandverklaring"> | Afstandverklaring</template>
+                      <template v-if="house.remarks.zonnescherm"> | {{ house.remarks.zonnescherm }}</template>
                     </span>
                     <span v-if="house.remarks.glasbreuk" class="remark-item">
                       <strong>Glasbreuk:</strong> {{ house.remarks.glasbreuk }}
@@ -683,6 +712,11 @@ const formattedDate = computed(() => {
   width: 70px;
 }
 
+.houses-table th.col-dates {
+  text-align: left;
+  width: 100px;
+}
+
 .houses-table th.col-task-hours {
   width: 75px;
 }
@@ -718,11 +752,22 @@ const formattedDate = computed(() => {
   color: #1e3a5f;
 }
 
+.houses-table .dates {
+  font-size: 11px;
+  color: #6b7280;
+}
+
 .houses-table .task-hours {
   text-align: center;
   font-family: 'SF Mono', Monaco, 'Courier New', monospace;
   font-size: 12px;
   color: #374151;
+}
+
+.houses-table .task-hours .count-badge {
+  font-size: 10px;
+  color: #6b7280;
+  margin-left: 2px;
 }
 
 .houses-table .total-hours {
