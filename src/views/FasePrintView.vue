@@ -167,10 +167,21 @@ const overviewStats = computed(() => {
   }
 })
 
-// Total hours for fase
+// Total hours for fase - sum raw minutes first to avoid rounding accumulation errors
+const faseTotalMinutes = computed(() => {
+  return faseHouses.value.reduce((sum, houseNum) => {
+    const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
+    return sum + houseSessions.reduce((s, session) =>
+      s + (session.binnen_opruimen_min || 0) +
+          (session.buiten_balkon_min || 0) +
+          (session.zonnescherm_verwijderd_min || 0) +
+          (session.glasbreuk_min || 0) +
+          (session.diversen_min || 0), 0)
+  }, 0)
+})
+
 const faseTotalHours = computed(() => {
-  const total = faseHousesData.value.reduce((sum, h) => sum + parseFloat(h.totalHours), 0)
-  return total.toFixed(1)
+  return (faseTotalMinutes.value / 60).toFixed(1)
 })
 
 // Get photo URL (uses pre-generated thumbnail if available, else falls back to transform)
