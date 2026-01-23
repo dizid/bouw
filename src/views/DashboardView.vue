@@ -412,8 +412,8 @@ function getPrintUrl(fase: number) {
                   {{ session.buiten_balkon_opmerkingen }}
                 </div>
               </div>
-              <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
-                ✓ Zonnescherm
+              <div v-if="session.zonnescherm_verwijderd_min || session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
+                ✓ Zonnescherm: {{ minToHours(session.zonnescherm_verwijderd_min) }} uur
                 (terugplaatsen: {{ session.zonnescherm_terugplaatsen ? 'ja' : 'nee' }}, afstandverklaring: {{ session.zonnescherm_afstandverklaring ? 'ja' : 'nee' }})
                 <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.zonnescherm_opmerkingen }}
@@ -578,8 +578,8 @@ function getPrintUrl(fase: number) {
                   {{ session.buiten_balkon_opmerkingen }}
                 </div>
               </div>
-              <div v-if="session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
-                ✓ Zonnescherm
+              <div v-if="session.zonnescherm_verwijderd_min || session.zonnescherm_terugplaatsen !== null || session.zonnescherm_opmerkingen">
+                ✓ Zonnescherm: {{ minToHours(session.zonnescherm_verwijderd_min) }} uur
                 (terugplaatsen: {{ session.zonnescherm_terugplaatsen ? 'ja' : 'nee' }}, afstandverklaring: {{ session.zonnescherm_afstandverklaring ? 'ja' : 'nee' }})
                 <div v-if="session.zonnescherm_opmerkingen" style="color: var(--color-text-light); margin-left: 16px;">
                   {{ session.zonnescherm_opmerkingen }}
