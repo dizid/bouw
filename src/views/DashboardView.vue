@@ -72,7 +72,6 @@ onMounted(async () => {
     workersStore.fetchWorkers(),
     workersStore.fetchAllWorkers(),
     sessionsStore.fetchSessions(),
-    sessionsStore.fetchSettings(),
     sessionsStore.fetchPhaseHouses(),
   ])
 })
@@ -164,6 +163,7 @@ function formatDate(dateString: string | null) {
 function getSessionTotalHours(session: any) {
   const totalMin = (session.binnen_opruimen_min || 0) +
     (session.buiten_balkon_min || 0) +
+    (session.zonnescherm_verwijderd_min || 0) +
     (session.glasbreuk_min || 0) +
     (session.diversen_min || 0)
   return (totalMin / 60).toFixed(1)
@@ -249,10 +249,11 @@ const housesTableData = computed(() => {
     const houseSessions = sessionsStore.getSessionsForHouse(houseNum)
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
-    const hasZonnescherm = houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
+    const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
+    const hasZonnescherm = zonneschermMin > 0 || houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
-    const totalMin = binnenMin + balkonMin + glasbreukMin + diversenMin
+    const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
 
     houses.push({
       number: houseNum,
