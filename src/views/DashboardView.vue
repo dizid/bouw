@@ -239,7 +239,7 @@ const housesTableData = computed(() => {
     sessions: number
     binnenHours: string | null
     balkonHours: string | null
-    hasZonnescherm: boolean
+    zonneschermHours: string | null
     glasbreukHours: string | null
     diversenHours: string | null
     totalHours: string
@@ -250,7 +250,6 @@ const housesTableData = computed(() => {
     const binnenMin = houseSessions.reduce((sum, s) => sum + (s.binnen_opruimen_min || 0), 0)
     const balkonMin = houseSessions.reduce((sum, s) => sum + (s.buiten_balkon_min || 0), 0)
     const zonneschermMin = houseSessions.reduce((sum, s) => sum + (s.zonnescherm_verwijderd_min || 0), 0)
-    const hasZonnescherm = zonneschermMin > 0 || houseSessions.some(s => s.zonnescherm_terugplaatsen !== null || s.zonnescherm_opmerkingen)
     const glasbreukMin = houseSessions.reduce((sum, s) => sum + (s.glasbreuk_min || 0), 0)
     const diversenMin = houseSessions.reduce((sum, s) => sum + (s.diversen_min || 0), 0)
     const totalMin = binnenMin + balkonMin + zonneschermMin + glasbreukMin + diversenMin
@@ -260,7 +259,7 @@ const housesTableData = computed(() => {
       sessions: houseSessions.length,
       binnenHours: binnenMin > 0 ? (binnenMin / 60).toFixed(1) : null,
       balkonHours: balkonMin > 0 ? (balkonMin / 60).toFixed(1) : null,
-      hasZonnescherm,
+      zonneschermHours: zonneschermMin > 0 ? (zonneschermMin / 60).toFixed(1) : null,
       glasbreukHours: glasbreukMin > 0 ? (glasbreukMin / 60).toFixed(1) : null,
       diversenHours: diversenMin > 0 ? (diversenMin / 60).toFixed(1) : null,
       totalHours: (totalMin / 60).toFixed(1),
@@ -650,7 +649,7 @@ function getPrintUrl(fase: number) {
                 <td style="font-weight: 600;">{{ house.number }}</td>
                 <td>{{ house.binnenHours || '-' }}</td>
                 <td>{{ house.balkonHours || '-' }}</td>
-                <td>{{ house.hasZonnescherm ? 'Ja' : '-' }}</td>
+                <td>{{ house.zonneschermHours || '-' }}</td>
                 <td>{{ house.glasbreukHours || '-' }}</td>
                 <td>{{ house.diversenHours || '-' }}</td>
                 <td style="font-weight: 600;">{{ house.totalHours }}</td>
