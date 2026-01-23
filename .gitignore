@@ -26,3 +26,9 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Local notes/docs
+BUGFIX.md
+CLAUDE.md
+PHOTO-FAILURE-ANALYSIS.md
+todo.md
