@@ -184,6 +184,28 @@ const faseTotalHours = computed(() => {
   return (faseTotalMinutes.value / 60).toFixed(1)
 })
 
+// Per-task total hours for overview — computed from raw minutes, not from rounded row values
+const faseTaskTotals = computed(() => {
+  let binnenMin = 0, balkonMin = 0, zonneschermMin = 0, glasbreukMin = 0, diversenMin = 0
+  for (const houseNum of faseHouses.value) {
+    for (const s of sessionsStore.getSessionsForHouse(houseNum)) {
+      binnenMin      += s.binnen_opruimen_min        || 0
+      balkonMin      += s.buiten_balkon_min          || 0
+      zonneschermMin += s.zonnescherm_verwijderd_min || 0
+      glasbreukMin   += s.glasbreuk_min              || 0
+      diversenMin    += s.diversen_min               || 0
+    }
+  }
+  const fmt = (m: number) => m > 0 ? (m / 60).toFixed(1) : null
+  return {
+    binnen:      fmt(binnenMin),
+    balkon:      fmt(balkonMin),
+    zonnescherm: fmt(zonneschermMin),
+    glasbreuk:   fmt(glasbreukMin),
+    diversen:    fmt(diversenMin),
+  }
+})
+
 // Get photo URL (uses pre-generated thumbnail if available, else falls back to transform)
 function getPhotoUrl(photo: SessionPhoto): string {
   return photosStore.getPhotoThumbnailUrl(photo.storage_path, photo.thumbnail_path)
@@ -282,43 +304,38 @@ const formattedDate = computed(() => {
           <h3>Uitgevoerde werkzaamheden</h3>
           <div class="task-row">
             <span class="task-name">Binnen opruimen</span>
-            <span class="task-count">{{ overviewStats.binnen.count }}</span>
-            <span class="task-pct">({{ overviewStats.binnen.pct }}%)</span>
             <div class="task-bar">
               <div class="task-bar-fill" :style="{ width: overviewStats.binnen.pct + '%' }"></div>
             </div>
+            <span v-if="faseTaskTotals.binnen" class="task-hours-total">{{ faseTaskTotals.binnen }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Balkon opruimen</span>
-            <span class="task-count">{{ overviewStats.balkon.count }}</span>
-            <span class="task-pct">({{ overviewStats.balkon.pct }}%)</span>
             <div class="task-bar">
               <div class="task-bar-fill" :style="{ width: overviewStats.balkon.pct + '%' }"></div>
             </div>
+            <span v-if="faseTaskTotals.balkon" class="task-hours-total">{{ faseTaskTotals.balkon }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Zonnescherm</span>
-            <span class="task-count">{{ overviewStats.zonnescherm.count }}</span>
-            <span class="task-pct">({{ overviewStats.zonnescherm.pct }}%)</span>
             <div class="task-bar">
               <div class="task-bar-fill" :style="{ width: overviewStats.zonnescherm.pct + '%' }"></div>
             </div>
+            <span v-if="faseTaskTotals.zonnescherm" class="task-hours-total">{{ faseTaskTotals.zonnescherm }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Glasbreuk</span>
-            <span class="task-count">{{ overviewStats.glasbreuk.count }}</span>
-            <span class="task-pct">({{ overviewStats.glasbreuk.pct }}%)</span>
             <div class="task-bar">
               <div class="task-bar-fill" :style="{ width: overviewStats.glasbreuk.pct + '%' }"></div>
             </div>
+            <span v-if="faseTaskTotals.glasbreuk" class="task-hours-total">{{ faseTaskTotals.glasbreuk }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Diversen</span>
-            <span class="task-count">{{ overviewStats.diversen.count }}</span>
-            <span class="task-pct">({{ overviewStats.diversen.pct }}%)</span>
             <div class="task-bar">
               <div class="task-bar-fill" :style="{ width: overviewStats.diversen.pct + '%' }"></div>
             </div>
+            <span v-if="faseTaskTotals.diversen" class="task-hours-total">{{ faseTaskTotals.diversen }} uur</span>
           </div>
         </div>
       </section>
@@ -405,6 +422,13 @@ const formattedDate = computed(() => {
               </tr>
             </template>
           </tbody>
+          <tfoot>
+            <tr class="totals-row">
+              <td colspan="7"><strong>Totaal fase {{ faseNum }}</strong></td>
+              <td class="total-hours"><strong>{{ faseTotalHours }}</strong></td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       </section>
 
@@ -636,7 +660,7 @@ const formattedDate = computed(() => {
 
 .task-row {
   display: grid;
-  grid-template-columns: 140px 40px 50px 1fr;
+  grid-template-columns: 140px 1fr auto;
   gap: 12px;
   align-items: center;
   padding: 10px 0;
@@ -652,16 +676,10 @@ const formattedDate = computed(() => {
   color: #374151;
 }
 
-.task-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e3a5f;
-  text-align: right;
-}
-
-.task-pct {
+.task-hours-total {
   font-size: 13px;
-  color: #6b7280;
+  font-weight: 600;
+  color: #059669;
 }
 
 .task-bar {
@@ -788,6 +806,14 @@ const formattedDate = computed(() => {
   font-weight: 700;
   color: #1e3a5f;
   background: #f0f7ff;
+}
+
+.totals-row td {
+  border-top: 2px solid var(--primary);
+  background: #f0f4f8;
+  padding: 8px 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .houses-table .workers {
@@ -983,6 +1009,11 @@ const formattedDate = computed(() => {
   }
 
   .houses-table .total-hours {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .houses-table .totals-row td {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
