@@ -196,13 +196,15 @@ const faseTaskTotals = computed(() => {
       diversenMin    += s.diversen_min               || 0
     }
   }
+  const totalMin = faseTotalMinutes.value
   const fmt = (m: number) => m > 0 ? (m / 60).toFixed(1) : null
+  const pct = (m: number) => totalMin > 0 ? Math.round((m / totalMin) * 100) : 0
   return {
-    binnen:      fmt(binnenMin),
-    balkon:      fmt(balkonMin),
-    zonnescherm: fmt(zonneschermMin),
-    glasbreuk:   fmt(glasbreukMin),
-    diversen:    fmt(diversenMin),
+    binnen:      { hours: fmt(binnenMin),      pct: pct(binnenMin) },
+    balkon:      { hours: fmt(balkonMin),      pct: pct(balkonMin) },
+    zonnescherm: { hours: fmt(zonneschermMin), pct: pct(zonneschermMin) },
+    glasbreuk:   { hours: fmt(glasbreukMin),   pct: pct(glasbreukMin) },
+    diversen:    { hours: fmt(diversenMin),    pct: pct(diversenMin) },
   }
 })
 
@@ -305,37 +307,37 @@ const formattedDate = computed(() => {
           <div class="task-row">
             <span class="task-name">Binnen opruimen</span>
             <div class="task-bar">
-              <div class="task-bar-fill" :style="{ width: overviewStats.binnen.pct + '%' }"></div>
+              <div class="task-bar-fill" :style="{ width: faseTaskTotals.binnen.pct + '%' }"></div>
             </div>
-            <span v-if="faseTaskTotals.binnen" class="task-hours-total">{{ faseTaskTotals.binnen }} uur</span>
+            <span v-if="faseTaskTotals.binnen.hours" class="task-hours-total">{{ faseTaskTotals.binnen.hours }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Balkon opruimen</span>
             <div class="task-bar">
-              <div class="task-bar-fill" :style="{ width: overviewStats.balkon.pct + '%' }"></div>
+              <div class="task-bar-fill" :style="{ width: faseTaskTotals.balkon.pct + '%' }"></div>
             </div>
-            <span v-if="faseTaskTotals.balkon" class="task-hours-total">{{ faseTaskTotals.balkon }} uur</span>
+            <span v-if="faseTaskTotals.balkon.hours" class="task-hours-total">{{ faseTaskTotals.balkon.hours }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Zonnescherm</span>
             <div class="task-bar">
-              <div class="task-bar-fill" :style="{ width: overviewStats.zonnescherm.pct + '%' }"></div>
+              <div class="task-bar-fill" :style="{ width: faseTaskTotals.zonnescherm.pct + '%' }"></div>
             </div>
-            <span v-if="faseTaskTotals.zonnescherm" class="task-hours-total">{{ faseTaskTotals.zonnescherm }} uur</span>
+            <span v-if="faseTaskTotals.zonnescherm.hours" class="task-hours-total">{{ faseTaskTotals.zonnescherm.hours }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Glasbreuk</span>
             <div class="task-bar">
-              <div class="task-bar-fill" :style="{ width: overviewStats.glasbreuk.pct + '%' }"></div>
+              <div class="task-bar-fill" :style="{ width: faseTaskTotals.glasbreuk.pct + '%' }"></div>
             </div>
-            <span v-if="faseTaskTotals.glasbreuk" class="task-hours-total">{{ faseTaskTotals.glasbreuk }} uur</span>
+            <span v-if="faseTaskTotals.glasbreuk.hours" class="task-hours-total">{{ faseTaskTotals.glasbreuk.hours }} uur</span>
           </div>
           <div class="task-row">
             <span class="task-name">Diversen</span>
             <div class="task-bar">
-              <div class="task-bar-fill" :style="{ width: overviewStats.diversen.pct + '%' }"></div>
+              <div class="task-bar-fill" :style="{ width: faseTaskTotals.diversen.pct + '%' }"></div>
             </div>
-            <span v-if="faseTaskTotals.diversen" class="task-hours-total">{{ faseTaskTotals.diversen }} uur</span>
+            <span v-if="faseTaskTotals.diversen.hours" class="task-hours-total">{{ faseTaskTotals.diversen.hours }} uur</span>
           </div>
         </div>
       </section>
